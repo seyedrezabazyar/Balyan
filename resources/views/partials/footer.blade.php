@@ -133,7 +133,7 @@
                         <ul class="footer-bottom-links">
                             <li><a href="{{ route('privacy') }}" class="footer-bottom-link">حریم خصوصی</a></li>
                             <li><a href="{{ route('terms') }}" class="footer-bottom-link">قوانین استفاده</a></li>
-                            <li><a href="#" class="footer-bottom-link">سوالات متداول</a></li>
+                            <li><a href="{{ route('faq') }}" class="footer-bottom-link">سوالات متداول</a></li>
                         </ul>
                     </nav>
                 </div>

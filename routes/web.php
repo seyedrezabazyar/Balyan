@@ -15,11 +15,11 @@ Route::get('/privacy', function () {
 })->name('privacy');
 
 Route::get('/topics', function () {
-    return 'موضوعات';
+    return view('pages.topics');
 })->name('topics');
 
 Route::get('/faq', function () {
-    return 'سوالات متداول';
+    return view('pages.faq');
 })->name('faq');
 
 Route::get('/dmca', function () {
