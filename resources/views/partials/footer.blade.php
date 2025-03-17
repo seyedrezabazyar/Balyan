@@ -63,7 +63,7 @@
                                         <li><a href="#"><i class="fas fa-shipping-fast" aria-hidden="true"></i>پیگیری سفارش</a></li>
                                         <li><a href="#"><i class="fas fa-undo" aria-hidden="true"></i>بازگردانی محصول</a></li>
                                         <li><a href="{{ route('book.request') }}"><i class="fas fa-book-medical" aria-hidden="true"></i>درخواست کتاب</a></li>
-                                        <li><a href="#"><i class="fas fa-newspaper" aria-hidden="true"></i>درخواست مقاله</a></li>
+                                        <li><a href="{{ route('article.request') }}"><i class="fas fa-newspaper" aria-hidden="true"></i>درخواست مقاله</a></li>
                                         <li><a href="#"><i class="fas fa-language" aria-hidden="true"></i>درخواست ترجمه</a></li>
                                     </ul>
                                 </nav>

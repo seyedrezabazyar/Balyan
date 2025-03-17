@@ -22,6 +22,10 @@ Route::get('/book-request', function () {
     return view('pages.book-request');
 })->name('book.request');
 
+Route::get('/article-request', function () {
+    return view('pages.article-request');
+})->name('article.request');
+
 Route::get('/faq', function () {
     return view('pages.faq');
 })->name('faq');
