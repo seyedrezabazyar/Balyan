@@ -1,13 +1,18 @@
 <?php
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\TopicController;
-use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('home');
 })->name('home');
+
+Route::get('/terms', function () {
+    return view('pages.terms');
+})->name('terms');
+
+Route::get('/privacy', function () {
+    return view('pages.privacy');
+})->name('privacy');
 
 Route::get('/topics', function () {
     return 'موضوعات';

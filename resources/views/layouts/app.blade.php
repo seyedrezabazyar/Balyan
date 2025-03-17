@@ -3,55 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'کتابخانه دیجیتال')</title>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="کتابخانه دیجیتال بلیان، یک سامانه معرفی و دانلود کتاب با گستره‌ای از موضوعات متنوع">
+    <meta name="keywords" content="کتاب، کتابخانه دیجیتال، دانلود کتاب، مقالات علمی، کتاب الکترونیک">
+    <meta name="author" content="بلیان">
+    <meta name="theme-color" content="#3b82f6">
+    <meta property="og:title" content="کتابخانه دیجیتال بلیان">
+    <meta property="og:description" content="کتابخانه دیجیتال بلیان، یک سامانه معرفی و دانلود کتاب با گستره‌ای از موضوعات متنوع">
+    <meta property="og:image" content="{{ asset('images/og-image.jpg') }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:type" content="website">
 
-    <!-- فونت‌آوسام -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>@yield('title', 'کتابخانه دیجیتال بلیان')</title>
 
-    <!-- بوت‌استرپ -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.rtl.min.css">
-
+    <!-- فونت آیکون -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- بوت استرپ -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.rtl.min.css">
     <!-- استایل سفارشی -->
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+    <!-- فیکون -->
+    <link rel="icon" href="{{ asset('images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
 
     @stack('styles')
 </head>
 <body>
 @include('partials.header')
 
-<main class="py-4">
+<main id="content">
     @yield('content')
 </main>
 
 @include('partials.footer')
 
-<!-- بوت‌استرپ جاوااسکریپت -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- اسکریپت جستجوی تمام صفحه -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchToggle = document.getElementById('searchToggle');
-        const searchClose = document.getElementById('searchClose');
-        const searchOverlay = document.getElementById('mobileSearchOverlay');
-
-        if (searchToggle && searchClose && searchOverlay) {
-            searchToggle.addEventListener('click', function() {
-                searchOverlay.classList.add('active');
-                setTimeout(() => {
-                    searchOverlay.querySelector('input').focus();
-                }, 100);
-                document.body.style.overflow = 'hidden';
-            });
-
-            searchClose.addEventListener('click', function() {
-                searchOverlay.classList.remove('active');
-                document.body.style.overflow = '';
-            });
-        }
-    });
-</script>
-
+<!-- اسکریپت‌های بوت استرپ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 @stack('scripts')
 </body>
 </html>

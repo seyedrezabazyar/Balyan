@@ -31,68 +31,59 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // جستجو در هدر
-    const searchToggle = document.querySelector('.search-toggle');
-    const searchDropdown = document.querySelector('.search-dropdown');
+    // اصلاح عملکرد منوی موبایل
+    const navbarToggler = document.querySelector('.navbar-toggler');
+    const navbarCollapse = document.querySelector('#navbarNav');
 
-    if (searchToggle && searchDropdown) {
-        searchToggle.addEventListener('click', function(event) {
-            event.stopPropagation();
-            searchDropdown.classList.toggle('show');
-            if (searchDropdown.classList.contains('show')) {
-                searchDropdown.querySelector('input').focus();
+    if (navbarToggler && navbarCollapse) {
+        navbarToggler.addEventListener('click', function() {
+            if (navbarCollapse.classList.contains('show')) {
+                navbarCollapse.classList.remove('show');
+            } else {
+                navbarCollapse.classList.add('show');
             }
         });
 
-        // بستن جستجو با کلیک بیرون
+        // بستن منوی موبایل با کلیک خارج از آن
         document.addEventListener('click', function(event) {
-            if (!event.target.closest('.search-wrapper')) {
-                searchDropdown.classList.remove('show');
+            if (window.innerWidth < 992) { // فقط در حالت موبایل اجرا شود
+                const isClickInsideNavbar = navbarToggler.contains(event.target) ||
+                    navbarCollapse.contains(event.target);
+
+                if (!isClickInsideNavbar && navbarCollapse.classList.contains('show')) {
+                    navbarCollapse.classList.remove('show');
+                }
             }
         });
+    }
 
-        // جلوگیری از بسته شدن منوی جستجو با کلیک روی خود منو
-        searchDropdown.addEventListener('click', function(event) {
-            event.stopPropagation();
+    // جستجوی موبایل
+    const searchToggleBtn = document.getElementById('searchToggle');
+    const searchClose = document.getElementById('searchClose');
+    const mobileSearchOverlay = document.getElementById('mobileSearchOverlay');
+
+    if (searchToggleBtn && searchClose && mobileSearchOverlay) {
+        searchToggleBtn.addEventListener('click', function() {
+            mobileSearchOverlay.style.display = 'flex';
+            setTimeout(() => {
+                mobileSearchOverlay.classList.add('active');
+                document.querySelector('.mobile-search-input').focus();
+            }, 10);
         });
 
-        // اعتبارسنجی فرم جستجو
-        const searchForm = searchDropdown.querySelector('form');
-        const searchInput = searchDropdown.querySelector('input');
-
-        if (searchForm) {
-            searchForm.addEventListener('submit', function(event) {
-                const value = searchInput.value.trim();
-
-                // بررسی برای کاراکترهای خطرناک
-                if (/[<>]/.test(value)) {
-                    event.preventDefault();
-                    alert('لطفاً از کاراکترهای مجاز استفاده کنید.');
-                    return false;
-                }
-
-                // بررسی طول ورودی
-                if (value.length > 100) {
-                    event.preventDefault();
-                    alert('متن جستجو بیش از حد طولانی است.');
-                    return false;
-                }
-
-                // بررسی خالی بودن ورودی
-                if (value.length === 0) {
-                    event.preventDefault();
-                    alert('لطفاً عبارت جستجو را وارد کنید.');
-                    return false;
-                }
-            });
-        }
+        searchClose.addEventListener('click', function() {
+            mobileSearchOverlay.classList.remove('active');
+            setTimeout(() => {
+                mobileSearchOverlay.style.display = 'none';
+            }, 300);
+        });
     }
 
     // تنظیم CSRF توکن برای درخواست‌های AJAX
-    const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
     // تنظیم CSRF توکن برای jQuery AJAX (اگر jQuery استفاده می‌شود)
-    if (typeof $.ajaxSetup === 'function') {
+    if (token && typeof $.ajaxSetup === 'function') {
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': token
@@ -135,6 +126,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // اضافه کردن کلاس به هدر هنگام اسکرول
+    window.addEventListener('scroll', function() {
+        const navbar = document.querySelector('.navbar-glass');
+        if (navbar) {
+            if (window.scrollY > 10) {
+                navbar.classList.add('navbar-scrolled');
+            } else {
+                navbar.classList.remove('navbar-scrolled');
+            }
+        }
+    });
 });
 
 /**
