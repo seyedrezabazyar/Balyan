@@ -124,10 +124,11 @@
     <div class="footer-bottom">
         <div class="container">
             <div class="row align-items-center">
-                <div class="col-md-6">
+                <div class="col-md-6 order-md-1 order-2 text-md-start text-center mt-3 mt-md-0">
                     <p class="copyright">© {{ date('Y') }} کتابخانه دیجیتال بلیان | طراحی با <i class="fas fa-heart text-danger" aria-hidden="true"></i> برای دوستداران کتاب</p>
                 </div>
-                <div class="col-md-6">
+
+                <div class="col-md-6 order-md-2 order-1 mb-md-0">
                     <nav aria-label="لینک‌های قانونی">
                         <ul class="footer-bottom-links">
                             <li><a href="{{ route('privacy') }}" class="footer-bottom-link">حریم خصوصی</a></li>

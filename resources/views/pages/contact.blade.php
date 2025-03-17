@@ -500,6 +500,21 @@
                 margin: 0 auto 1rem;
             }
 
+            .info-content {
+                text-align: center;
+                width: 100%;
+            }
+
+            .info-content h3,
+            .info-content p {
+                text-align: center;
+            }
+
+            .info-content .working-hours {
+                display: inline-block;
+                margin: 0.5rem auto 0;
+            }
+
             .map-info {
                 position: static;
                 margin: 0 auto 1.5rem;

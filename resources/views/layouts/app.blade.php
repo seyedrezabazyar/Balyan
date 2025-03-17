@@ -39,6 +39,8 @@
 
 <!-- اسکریپت‌های بوت استرپ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- اسکریپت‌های اصلی سایت -->
+<script src="{{ asset('js/script.js') }}"></script>
 @stack('scripts')
 </body>
 </html>
