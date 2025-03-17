@@ -22,6 +22,10 @@ Route::get('/faq', function () {
     return 'سوالات متداول';
 })->name('faq');
 
+Route::get('/dmca', function () {
+    return view('pages.dmca');
+})->name('dmca');
+
 Route::get('/about', function () {
     return view('pages.about');
 })->name('about');

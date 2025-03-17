@@ -30,7 +30,7 @@
                     </p>
                     <p>
                         تمامی محتوای این سایت مطابق با قوانین جمهوری اسلامی ایران منتشر می‌شود. نویسندگان و ناشران می‌توانند از طریق بخش تماس با ما، درخواست حذف اثر خود را ثبت نمایند.
-                        <a href="#" class="dmca-link">[DMCA Policy]</a>
+                        <a href="{{ route('dmca') }}" class="dmca-link">[DMCA Policy]</a>
                     </p>
                 </div>
                 <div class="social-icons">
