@@ -18,12 +18,16 @@ Route::get('/topics', function () {
     return 'موضوعات';
 })->name('topics');
 
+Route::get('/faq', function () {
+    return 'سوالات متداول';
+})->name('faq');
+
 Route::get('/about', function () {
-    return 'درباره ما';
+    return view('pages.about');
 })->name('about');
 
 Route::get('/contact', function () {
-    return 'تماس با ما';
+    return view('pages.contact');
 })->name('contact');
 
 Route::get('/search', function () {

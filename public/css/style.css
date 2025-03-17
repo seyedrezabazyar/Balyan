@@ -949,3 +949,40 @@ img {
         align-items: center;
         justify-content: center;
     }
+
+    /* افکت hover برای آیتم‌های منو در حالت موبایل */
+    @media (max-width: 991.98px) {
+        /* حذف خط زیرین از حالت موبایل */
+        .nav-hover-effect::after {
+            display: none;
+        }
+
+        /* تنظیم حالت پایه لینک‌ها */
+        .navbar-nav .nav-item .nav-link {
+            position: relative;
+            transition: all var(--transition-medium);
+            border-right: 3px solid transparent;
+        }
+
+        /* افکت hover برای آیتم‌های منو */
+        .navbar-nav .nav-item .nav-link:hover,
+        .navbar-nav .nav-item .nav-link:active,
+        .navbar-nav .nav-item .nav-link:focus,
+        .navbar-nav .nav-item .nav-link.active {
+            background-color: rgba(59, 130, 246, 0.08);
+            border-right: 3px solid var(--primary);
+            color: var(--primary);
+        }
+
+        /* انیمیشن آیکون‌ها */
+        .navbar-nav .nav-item .nav-link i {
+            transition: all var(--transition-medium);
+        }
+
+        .navbar-nav .nav-item .nav-link:hover i,
+        .navbar-nav .nav-item .nav-link:focus i,
+        .navbar-nav .nav-item .nav-link.active i {
+            transform: translateX(-5px);
+            color: var(--primary);
+        }
+    }

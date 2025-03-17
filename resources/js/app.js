@@ -298,3 +298,4 @@ function initLoginPage() {
 
 // فراخوانی تابع راه‌اندازی صفحه ورود پس از بارگذاری صفحه
 document.addEventListener('DOMContentLoaded', initLoginPage);
+
