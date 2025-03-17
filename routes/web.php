@@ -18,6 +18,10 @@ Route::get('/topics', function () {
     return view('pages.topics');
 })->name('topics');
 
+Route::get('/book-request', function () {
+    return view('pages.book-request');
+})->name('book.request');
+
 Route::get('/faq', function () {
     return view('pages.faq');
 })->name('faq');
