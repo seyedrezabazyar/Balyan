@@ -1,12 +1,823 @@
-@import 'tailwindcss';
-
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source "../**/*.blade.php";
-@source "../**/*.js";
-@source "../**/*.vue";
-
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* متغیرهای رنگ و استایل */
+:root {
+    --primary-color: #4361ee;
+    --primary-hover: #3a56d4;
+    --primary-light: rgba(67, 97, 238, 0.1);
+    --secondary-color: #ff6b6b;
+    --success-color: #38b000;
+    --info-color: #4cc9f0;
+    --warning-color: #ffbe0b;
+    --danger-color: #ef233c;
+    --dark-color: #212529;
+    --light-color: #f8f9fa;
+    --border-radius: 12px;
+    --box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    --transition: all 0.3s ease;
 }
+
+/* استایل‌های عمومی */
+body {
+    font-family: 'Vazirmatn', sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+    line-height: 1.6;
+}
+
+a {
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+/* استایل‌های هدر */
+.site-header {
+    background-color: #fff;
+}
+
+.navbar {
+    padding: 0.5rem 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.navbar-brand img {
+    max-height: 48px;
+    margin-bottom: 3px;
+}
+
+.nav-link {
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--primary-color);
+}
+
+/* استایل‌های جستجو در هدر */
+.search-wrapper {
+    position: relative;
+    margin-right: 1rem;
+}
+
+.search-toggle {
+    background: none;
+    border: none;
+    color: #333;
+    font-size: 1.1rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.search-toggle:hover {
+    background-color: #f0f0f0;
+    color: var(--primary-color);
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    transform: translateX(-50%);
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    min-width: 300px;
+    display: none;
+    z-index: 1000;
+    margin-top: 0.5rem;
+}
+
+.search-dropdown.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.search-dropdown .input-group {
+    border-radius: 30px;
+    overflow: hidden;
+}
+
+.search-dropdown .form-control {
+    border-top-right-radius: 30px;
+    border-bottom-right-radius: 30px;
+    padding-right: 1rem;
+}
+
+.search-dropdown .btn {
+    border-top-left-radius: 30px;
+    border-bottom-left-radius: 30px;
+    padding-left: 1rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px) translateX(-50%); }
+    to { opacity: 1; transform: translateY(0) translateX(-50%); }
+}
+
+/* استایل‌های دکمه ورود و منوی کاربر */
+.dropdown-menu {
+    padding: 0.5rem 0;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.dropdown-item i {
+    width: 20px;
+    text-align: center;
+}
+
+.dropdown-divider {
+    margin: 0.25rem 0;
+}
+
+/* استایل دکمه ورود */
+.btn-outline-primary {
+    border-radius: 20px;
+    padding: 0.375rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* استایل دکمه کاربر */
+.btn-outline-secondary {
+    border-radius: 20px;
+    padding: 0.375rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* استایل لودر صفحه */
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.3s ease;
+}
+
+.loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* استایل برای حالت noscript */
+.noscript-warning {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+    border-radius: 5px;
+    text-align: center;
+}
+
+/* استایل‌های کارت کتاب */
+.book-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+/* استایل‌های جزئیات کتاب */
+.book-title {
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.book-cover-container {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.book-details-card {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+/* استایل‌های توضیحات کتاب */
+.description-content {
+    line-height: 1.8;
+}
+
+.description-content img {
+    max-width: 100%;
+    height: auto;
+    margin: 10px 0;
+    border-radius: 5px;
+}
+
+/* استایل‌های فوتر */
+footer {
+    background-color: #212529;
+    color: #f8f9fa;
+    padding: 50px 0 20px;
+    margin-top: 50px;
+}
+
+.footer-logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.footer-description {
+    color: #adb5bd;
+    margin-bottom: 20px;
+    line-height: 1.7;
+}
+
+.social-icons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 50%;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+}
+
+.social-icons a:hover {
+    background-color: var(--primary-color);
+    transform: translateY(-3px);
+}
+
+.footer-title {
+    color: #fff;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: 10px;
+}
+
+.footer-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 50px;
+    height: 2px;
+    background-color: var(--primary-color);
+}
+
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links li {
+    margin-bottom: 10px;
+}
+
+.footer-links a {
+    color: #adb5bd;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.footer-links a i {
+    margin-left: 8px;
+    font-size: 0.8rem;
+}
+
+.footer-links a:hover {
+    color: #fff;
+    transform: translateX(-5px);
+}
+
+.contact-info {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.contact-info li {
+    margin-bottom: 15px;
+    color: #adb5bd;
+    display: flex;
+    align-items: center;
+}
+
+.contact-info li i {
+    margin-left: 10px;
+    color: var(--primary-color);
+    width: 16px;
+    text-align: center;
+}
+
+.footer-bottom {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* دکمه اسکرول به بالا */
+.scroll-to-top {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 40px;
+    height: 40px;
+    background-color: var(--primary-color);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 999;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.scroll-to-top.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.scroll-to-top:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+/* استایل‌های صفحه ورود */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f5f7fa 0%, #eef1f5 100%);
+}
+
+.login-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.login-shapes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+}
+
+.login-shapes::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(67, 97, 238, 0.05) 0%, rgba(67, 97, 238, 0) 70%);
+    border-radius: 50%;
+}
+
+.login-shapes::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -30%;
+    width: 80%;
+    height: 80%;
+    background: radial-gradient(circle, rgba(255, 107, 107, 0.05) 0%, rgba(255, 107, 107, 0) 70%);
+    border-radius: 50%;
+}
+
+.login-container {
+    position: relative;
+    z-index: 2;
+    background-color: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+    padding: 40px;
+}
+
+/* هدر لاگین */
+.login-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.login-logo {
+    max-width: 120px;
+    margin: 0 auto 20px;
+}
+
+.login-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--dark-color);
+    background: linear-gradient(to right, var(--primary-color), var(--primary-hover));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+}
+
+.login-subtitle {
+    color: #6c757d;
+    font-size: 1rem;
+}
+
+/* استایل هشدار */
+.custom-alert {
+    display: flex;
+    align-items: center;
+    border-radius: var(--border-radius);
+    padding: 15px;
+    margin-bottom: 25px;
+    border: none;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    margin-left: 15px;
+}
+
+.alert-content {
+    font-size: 0.95rem;
+}
+
+/* استایل فرم ورود */
+.login-form {
+    margin-bottom: 30px;
+}
+
+/* استایل انتخاب روش ورود */
+.login-method-toggle {
+    margin-bottom: 20px;
+}
+
+.toggle-options {
+    display: flex;
+    background-color: #f8f9fa;
+    border-radius: var(--border-radius);
+    padding: 5px;
+}
+
+.toggle-option {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    color: #6c757d;
+}
+
+.toggle-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-option.active {
+    background-color: white;
+    color: var(--primary-color);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+
+.toggle-icon {
+    margin-left: 8px;
+    font-size: 1.1rem;
+}
+
+.toggle-text {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* استایل بخش‌های ورودی */
+.input-section {
+    display: none;
+}
+
+.input-section.active {
+    display: block;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* استایل ورودی شماره موبایل و ایمیل */
+.phone-input-container,
+.email-input-container {
+    position: relative;
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--dark-color);
+    display: flex;
+    align-items: center;
+}
+
+.phone-input-wrapper,
+.email-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.phone-input,
+.email-input {
+    height: 55px;
+    padding-right: 45px;
+    padding-left: 15px;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    border: 2px solid #e9ecef;
+    background-color: #f8f9fa;
+    transition: var(--transition);
+    width: 100%;
+}
+
+.phone-input:focus,
+.email-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.15);
+    background-color: white;
+    outline: none;
+}
+
+.input-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    color: #adb5bd;
+    transition: var(--transition);
+}
+
+.phone-input:focus ~ .input-icon,
+.email-input:focus ~ .input-icon {
+    color: var(--primary-color);
+}
+
+.form-text {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.form-text i {
+    margin-left: 5px;
+    color: var(--info-color);
+}
+
+/* دکمه ورود */
+.login-actions {
+    margin-bottom: 30px;
+}
+
+.btn-login {
+    width: 100%;
+    padding: 15px 25px;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 600;
+    background: linear-gradient(to right, var(--primary-color), var(--primary-hover));
+    border: none;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-login::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+    transform: rotate(45deg);
+    animation: shine 3s infinite;
+    pointer-events: none;
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-100%) rotate(45deg);
+    }
+    100% {
+        transform: translateX(100%) rotate(45deg);
+    }
+}
+
+.btn-login:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(67, 97, 238, 0.3);
+}
+
+.btn-text {
+    margin-left: 10px;
+}
+
+.btn-icon-container {
+    position: relative;
+    width: 24px;
+    height: 24px;
+}
+
+.btn-icon-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: var(--transition);
+}
+
+.btn-login:hover .btn-icon-circle {
+    transform: scale(1.2);
+}
+
+/* ویژگی‌های کتاب‌یار */
+.login-features {
+    background-color: #f8f9fa;
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.feature-item:last-child {
+    margin-bottom: 0;
+}
+
+.feature-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-light), rgba(67, 97, 238, 0.2));
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 15px;
+    flex-shrink: 0;
+}
+
+.feature-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+/* فوتر فرم */
+.login-footer {
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+    padding-top: 20px;
+}
+
+.privacy-text {
+    font-size: 0.8rem !important;
+    color: #adb5bd !important;
+    margin-bottom: 0;
+}
+
+.login-footer a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+/* استایل‌های واکنش‌گرا */
+@media (max-width: 767.98px) {
+    .login-container {
+        padding: 30px 20px;
+    }
+
+    .login-title {
+        font-size: 1.5rem;
+    }
+
+    .phone-input,
+    .email-input {
+        height: 50px;
+    }
+
+    .search-dropdown {
+        left: 50%;
+        min-width: 280px;
+    }
+
+    .navbar-collapse {
+        margin-top: 1rem;
+    }
+}
+
+/* انیمیشن‌های ورودی */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-header,
+.custom-alert,
+.login-form,
+.login-features,
+.login-footer {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.login-header { animation-delay: 0.1s; }
+.custom-alert { animation-delay: 0.2s; }
+.login-form { animation-delay: 0.3s; }
+.login-features { animation-delay: 0.4s; }
+.login-footer { animation-delay: 0.5s; }
