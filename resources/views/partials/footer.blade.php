@@ -59,8 +59,7 @@
                                 <h3 class="footer-title">خدمات کاربران</h3>
                                 <nav aria-label="خدمات کاربران">
                                     <ul class="footer-links">
-                                        <li><a href="#"><i class="fas fa-file-pdf" aria-hidden="true"></i>باز کردن فایل کتاب</a></li>
-                                        <li><a href="#"><i class="fas fa-shipping-fast" aria-hidden="true"></i>پیگیری سفارش</a></li>
+                                        <li><a href="{{ route('ebook.guide') }}"><i class="fas fa-file-pdf" aria-hidden="true"></i>باز کردن فایل کتاب</a></li>                                        <li><a href="#"><i class="fas fa-shipping-fast" aria-hidden="true"></i>پیگیری سفارش</a></li>
                                         <li><a href="#"><i class="fas fa-undo" aria-hidden="true"></i>بازگردانی محصول</a></li>
                                         <li><a href="{{ route('book.request') }}"><i class="fas fa-book-medical" aria-hidden="true"></i>درخواست کتاب</a></li>
                                         <li><a href="{{ route('article.request') }}"><i class="fas fa-newspaper" aria-hidden="true"></i>درخواست مقاله</a></li>
