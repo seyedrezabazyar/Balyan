@@ -1,6 +1,21 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware('guest')->group(function () {
+    // مرحله اول: ورود شماره موبایل یا ایمیل
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login/identify', [AuthController::class, 'identify'])->name('login.identify');
+
+    // مرحله دوم: تأیید با رمز عبور یا کد تأیید
+    Route::get('/verify', [AuthController::class, 'showVerificationForm'])->name('auth.verify-form');
+    Route::post('/verify', [AuthController::class, 'verify'])->name('auth.verify');
+
+    // مسیرهای API برای احراز هویت با AJAX
+    Route::post('/login/phone', [AuthController::class, 'loginApi'])->name('login.phone');
+    Route::post('/login/verify', [AuthController::class, 'verifyApi'])->name('login.verify');
+});
 
 Route::get('/', function () {
     return view('home');
@@ -66,11 +81,3 @@ Route::get('/contact', function () {
 Route::get('/search', function () {
     return 'نتایج جستجو: ' . request('q');
 })->name('search');
-
-Auth::routes();
-Route::get('/login', function () {
-    return 'صفحه ورود';
-})->name('login');
-Route::post('/logout', function () {
-    return 'خروج';
-})->name('logout');
