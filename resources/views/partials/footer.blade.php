@@ -77,7 +77,7 @@
                                         <li><a href="{{ route('topics') }}"><i class="fas fa-book" aria-hidden="true"></i>دسته‌بندی کتاب‌ها</a></li>
                                         <li><a href="{{ route('terms') }}"><i class="fas fa-gavel" aria-hidden="true"></i>قوانین و مقررات</a></li>
                                         <li><a href="#"><i class="fas fa-crown" aria-hidden="true"></i>اشتراک ویژه</a></li>
-                                        <li><a href="#"><i class="fas fa-tags" aria-hidden="true"></i>تخفیف‌ها</a></li>
+                                        <li><a href="{{ route('rewards') }}"><i class="fas fa-tags" aria-hidden="true"></i>تخفیف‌ها</a></li>
                                         <li><a href="{{ route('about') }}"><i class="fas fa-info-circle" aria-hidden="true"></i>درباره ما</a></li>
                                         <li><a href="{{ route('contact') }}"><i class="fas fa-envelope" aria-hidden="true"></i>تماس با ما</a></li>
                                     </ul>

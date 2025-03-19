@@ -30,6 +30,10 @@ Route::get('/request-translation', function () {
     return view('pages.request-translation');
 })->name('request.translation');
 
+Route::get('/rewards', function () {
+    return view('pages.rewards');
+})->name('rewards');
+
 Route::get('/return-policy', function () {
     return view('pages.return-policy');
 })->name('return.policy');
