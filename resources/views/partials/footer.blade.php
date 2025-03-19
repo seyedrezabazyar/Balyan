@@ -64,7 +64,7 @@
                                         <li><a href="{{ route('return.policy') }}"><i class="fas fa-undo" aria-hidden="true"></i>بازگردانی محصول</a></li>
                                         <li><a href="{{ route('request.book') }}"><i class="fas fa-book-medical" aria-hidden="true"></i>درخواست کتاب</a></li>
                                         <li><a href="{{ route('request.article') }}"><i class="fas fa-newspaper" aria-hidden="true"></i>درخواست مقاله</a></li>
-                                        <li><a href="#"><i class="fas fa-language" aria-hidden="true"></i>درخواست ترجمه</a></li>
+                                        <li><a href="{{ route('request.translation') }}"><i class="fas fa-language" aria-hidden="true"></i>درخواست ترجمه</a></li>
                                     </ul>
                                 </nav>
                             </div>
