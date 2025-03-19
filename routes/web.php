@@ -22,6 +22,10 @@ Route::get('/book-request', function () {
     return view('pages.book-request');
 })->name('book.request');
 
+Route::get('/return-policy', function () {
+    return view('pages.return-policy');
+})->name('return.policy');
+
 Route::get('/article-request', function () {
     return view('pages.article-request');
 })->name('article.request');
