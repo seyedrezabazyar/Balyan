@@ -18,17 +18,18 @@ Route::get('/topics', function () {
     return view('pages.topics');
 })->name('topics');
 
-Route::get('/book-request', function () {
-    return view('pages.book-request');
-})->name('book.request');
+Route::get('/request-article', function () {
+    return view('pages.request-article');
+})->name('request.article');
+
+Route::get('/request-book', function () {
+    return view('pages.request-book');
+})->name('request.book');
 
 Route::get('/return-policy', function () {
     return view('pages.return-policy');
 })->name('return.policy');
 
-Route::get('/article-request', function () {
-    return view('pages.article-request');
-})->name('article.request');
 
 Route::get('/ebook-guide', function () {
     return view('pages.ebook-guide');

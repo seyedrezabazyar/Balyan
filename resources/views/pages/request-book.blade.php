@@ -1,36 +1,36 @@
 @extends('layouts.app')
 
-@section('title', 'درخواست مقاله - کتابخانه دیجیتال بَلیان')
+@section('title', 'درخواست کتاب - کتابخانه دیجیتال بَلیان')
 
 @push('styles')
     <style>
         /* هدر صفحه */
-        .article-request-hero {
-            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+        .book-request-hero {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); /* رنگ آبی تیره‌تر برای هدر کتاب */
             padding: 4rem 0 2.5rem;
             color: #fff;
             text-align: center;
         }
 
-        .article-request-hero-icon {
+        .book-request-hero-icon {
             font-size: 2.5rem;
             margin-bottom: 1rem;
             display: inline-block;
         }
 
-        .article-request-hero-title {
+        .book-request-hero-title {
             font-size: 2.2rem;
             font-weight: 700;
             margin-bottom: 0.8rem;
         }
 
-        .article-request-hero-desc {
+        .book-request-hero-desc {
             font-size: 1.1rem;
             margin-bottom: 1rem;
             opacity: 0.8;
         }
 
-        .article-request-highlight {
+        .book-request-highlight {
             display: inline-block;
             background-color: rgba(255, 255, 255, 0.1);
             padding: 0.4rem 1.2rem;
@@ -54,7 +54,7 @@
         .section-icon {
             width: 45px;
             height: 45px;
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); /* رنگ آبی تیره‌تر برای آیکون‌ها */
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -91,8 +91,8 @@
             display: flex;
             align-items: center;
             padding: 1.5rem;
-            background-color: #f0f9ff;
-            border-right: 4px solid #3b82f6;
+            background-color: #eff6ff;
+            border-right: 4px solid #3b82f6; /* رنگ آبی تیره‌تر برای بوردر */
             position: relative;
             overflow: hidden;
         }
@@ -112,7 +112,7 @@
             width: 40px;
             height: 40px;
             min-width: 40px;
-            background-color: #3b82f6;
+            background-color: #3b82f6; /* رنگ آبی تیره‌تر برای آیکون */
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -256,11 +256,11 @@
 
         /* بخش اطلاعات درخواست */
         .request-info {
-            background: linear-gradient(to right, #f8fafc, #f0f9ff);
+            background: linear-gradient(to right, #f8fafc, #eff6ff);
             padding: 1.5rem;
             border-radius: 12px;
             margin-top: 1.5rem;
-            border-right: 4px solid #3b82f6;
+            border-right: 4px solid #3b82f6; /* رنگ آبی تیره‌تر برای بوردر */
         }
 
         .request-info h3 {
@@ -288,14 +288,14 @@
             content: "\f058";
             font-family: "Font Awesome 5 Free";
             font-weight: 900;
-            color: #3b82f6;
+            color: #3b82f6; /* رنگ آبی تیره‌تر برای آیکون */
             position: absolute;
             right: -1.5rem;
         }
 
         /* بخش پایانی */
         .request-footer {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); /* رنگ آبی تیره‌تر برای فوتر */
             border-radius: 12px;
             padding: 2rem;
             text-align: center;
@@ -322,7 +322,7 @@
 
         /* پاسخگویی */
         @media (max-width: 768px) {
-            .article-request-hero-title {
+            .book-request-hero-title {
                 font-size: 1.8rem;
             }
 
@@ -370,20 +370,301 @@
                 margin: 0 auto 1rem;
             }
         }
+
+        /* استایل برای تب‌های سوئیچ بین خدمات */
+        .service-tabs {
+            margin-top: -25px;
+            z-index: 10;
+        }
+
+        .tabs-container {
+            display: flex;
+            background-color: #ffffff;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem;
+            text-align: center;
+            color: var(--gray-700);
+            text-decoration: none;
+            position: relative;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-item:first-child {
+            border-radius: 0 15px 15px 0;
+        }
+
+        .tab-item:last-child {
+            border-radius: 15px 0 0 15px;
+        }
+
+        .tab-item.active {
+            background-color: rgba(59, 130, 246, 0.05); /* رنگ آبی تیره‌تر برای تب فعال */
+            border-bottom: 3px solid #3b82f6; /* رنگ آبی تیره‌تر برای بوردر تب فعال */
+            color: #3b82f6; /* رنگ آبی تیره‌تر برای متن تب فعال */
+        }
+
+        .tab-item:hover:not(.active) {
+            background-color: rgba(59, 130, 246, 0.03);
+            color: #3b82f6;
+        }
+
+        .tab-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .tab-text {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        /* Animation for active tab indicator */
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: #3b82f6; /* رنگ آبی تیره‌تر برای خط زیر تب فعال */
+            animation: tabIndicator 0.3s ease-out;
+        }
+
+        @keyframes tabIndicator {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        /* استایل کارت‌های مقایسه‌ای */
+        .compare-service-card {
+            border-radius: 12px;
+            padding: 2rem;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .compare-service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23f0f9ff' fill-opacity='0.3' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.2;
+            z-index: 0;
+        }
+
+        .article-service {
+            background-color: #e0f2fe;
+            border: 2px solid #0ea5e9;
+        }
+
+        .book-service {
+            background-color: #dbeafe;
+            border: 2px solid #3b82f6;
+        }
+
+        .compare-service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .compare-service-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .article-service .compare-service-icon {
+            background-color: #0ea5e9;
+            color: white;
+        }
+
+        .book-service .compare-service-icon {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .compare-service-card h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .compare-service-list {
+            padding-right: 1.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+            flex-grow: 1;
+        }
+
+        .compare-service-list li {
+            margin-bottom: 0.7rem;
+            position: relative;
+        }
+
+        .compare-service-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        .article-service .compare-service-list li::before {
+            content: "\f058";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            color: #0ea5e9;
+            position: absolute;
+            right: -1.5rem;
+        }
+
+        .book-service .compare-service-list li::before {
+            content: "\f058";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            color: #3b82f6;
+            position: absolute;
+            right: -1.5rem;
+        }
+
+        .compare-service-btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            text-align: center;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            align-self: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .article-btn {
+            background-color: #0ea5e9;
+            color: white !important;
+        }
+
+        .book-btn {
+            background-color: #3b82f6;
+            color: white !important;
+        }
+
+        .compare-service-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* مدیا کوئری برای تب‌ها */
+        @media (max-width: 576px) {
+            .tab-icon {
+                font-size: 1.2rem;
+                margin-bottom: 0.3rem;
+            }
+
+            .tab-text {
+                font-size: 0.9rem;
+            }
+
+            .tab-item {
+                padding: 1rem 0.5rem;
+            }
+
+            .compare-service-card {
+                padding: 1.5rem;
+            }
+
+            .compare-service-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+            }
+
+            .compare-service-card h3 {
+                font-size: 1.2rem;
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* افکت انیمیشنی */
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
     </style>
 @endpush
 
 @section('content')
-    <!-- هدر صفحه درخواست مقاله -->
-    <div class="article-request-hero">
+    <!-- هدر صفحه درخواست کتاب -->
+    <div class="book-request-hero">
         <div class="container">
             <div class="text-center">
-                <i class="fas fa-newspaper article-request-hero-icon"></i>
-                <h1 class="article-request-hero-title">درخواست مقاله</h1>
-                <p class="article-request-hero-desc">دسترسی به مقالات علمی و تخصصی مورد نیاز شما</p>
-                <div class="article-request-highlight">
+                <i class="fas fa-book-reader book-request-hero-icon"></i>
+                <h1 class="book-request-hero-title">درخواست کتاب</h1>
+                <p class="book-request-hero-desc">دسترسی به کتاب‌های الکترونیکی و منابع تخصصی مورد نیاز شما</p>
+                <div class="book-request-highlight">
                     <i class="fas fa-check-circle me-1"></i>
                     تحویل سریع
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- تب‌های سوئیچ بین خدمات -->
+    <div class="container mt-n4 mb-4 position-relative">
+        <div class="service-tabs">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="tabs-container">
+                        <a href="/request-article" class="tab-item">
+                            <i class="fas fa-newspaper tab-icon"></i>
+                            <span class="tab-text">درخواست مقاله</span>
+                        </a>
+                        <a href="/request-book" class="tab-item active">
+                            <i class="fas fa-book-reader tab-icon"></i>
+                            <span class="tab-text">درخواست کتاب</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -399,7 +680,7 @@
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div>
-                        <p>اگر به دنبال مقاله علمی یا تخصصی هستید که دسترسی به آن برای شما دشوار است، نگران نباشید! ما می‌توانیم آن مقاله را برای شما تهیه کنیم. کتابخانه دیجیتال بَلیان، دسترسی به مقالات معتبر از ژورنال‌های علمی سراسر دنیا را برای شما فراهم می‌کند.</p>
+                        <p>اگر به دنبال کتاب الکترونیکی یا منابع تخصصی هستید که دسترسی به آن برای شما دشوار است، نگران نباشید! ما می‌توانیم کتاب مورد نظر شما را تهیه کنیم. کتابخانه دیجیتال بَلیان، دسترسی به کتاب‌های علمی، تخصصی و عمومی را برای شما فراهم می‌کند.</p>
                     </div>
                 </div>
 
@@ -407,7 +688,7 @@
                 <section class="request-section">
                     <div class="section-header">
                         <i class="fas fa-tasks section-icon"></i>
-                        <h2>روند درخواست و دریافت مقاله</h2>
+                        <h2>روند درخواست و دریافت کتاب</h2>
                     </div>
                     <div class="request-card">
                         <div class="row text-center">
@@ -426,7 +707,7 @@
                                         <i class="fas fa-search"></i>
                                     </div>
                                     <h4 class="h5 mb-2">جستجو و تهیه</h4>
-                                    <p class="small text-muted">ما مقاله مورد نظر را جستجو و تهیه می‌کنیم</p>
+                                    <p class="small text-muted">ما کتاب مورد نظر را جستجو و تهیه می‌کنیم</p>
                                 </div>
                             </div>
                             <div class="col-md-4 mb-4">
@@ -434,63 +715,63 @@
                                     <div class="mb-3 text-primary" style="font-size: 2.5rem;">
                                         <i class="fas fa-download"></i>
                                     </div>
-                                    <h4 class="h5 mb-2">دریافت مقاله</h4>
-                                    <p class="small text-muted">پس از پرداخت هزینه، فایل PDF مقاله را دریافت کنید</p>
+                                    <h4 class="h5 mb-2">دریافت کتاب</h4>
+                                    <p class="small text-muted">پس از پرداخت هزینه، فایل کتاب را دریافت کنید</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- بخش انواع مقالات -->
+                <!-- بخش انواع کتاب‌ها -->
                 <section class="request-section">
                     <div class="section-header">
-                        <i class="fas fa-file-alt section-icon"></i>
-                        <h2>انواع مقالات قابل درخواست</h2>
+                        <i class="fas fa-book section-icon"></i>
+                        <h2>انواع کتاب‌های قابل درخواست</h2>
                     </div>
                     <div class="request-card">
                         <div class="row">
                             <div class="col-md-6 mb-4">
                                 <div class="p-3 bg-light rounded-3 h-100">
-                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-graduation-cap me-2"></i>مقالات دانشگاهی</h4>
-                                    <p class="small mb-0">مقالات پژوهشی از ژورنال‌های معتبر داخلی و خارجی در تمامی رشته‌های تحصیلی</p>
+                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-graduation-cap me-2"></i>کتاب‌های دانشگاهی</h4>
+                                    <p class="small mb-0">کتاب‌های مرجع و درسی دانشگاهی در تمامی رشته‌های تحصیلی</p>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-4">
                                 <div class="p-3 bg-light rounded-3 h-100">
-                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-flask me-2"></i>مقالات علمی</h4>
-                                    <p class="small mb-0">مقالات تخصصی و علمی از پایگاه‌های داده معتبر مانند ScienceDirect، Springer و IEEE</p>
+                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-flask me-2"></i>کتاب‌های علمی</h4>
+                                    <p class="small mb-0">کتاب‌های تخصصی و علمی در زمینه‌های مختلف</p>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-4">
                                 <div class="p-3 bg-light rounded-3 h-100">
-                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-book-open me-2"></i>مقالات مروری</h4>
-                                    <p class="small mb-0">مقالات مروری جامع که خلاصه‌ای از تحقیقات انجام‌شده در یک زمینه خاص را ارائه می‌دهند</p>
+                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-laptop-code me-2"></i>کتاب‌های تخصصی</h4>
+                                    <p class="small mb-0">کتاب‌های تخصصی در حوزه‌های مهندسی، پزشکی، علوم پایه و سایر رشته‌ها</p>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-4">
                                 <div class="p-3 bg-light rounded-3 h-100">
-                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-clipboard me-2"></i>مقالات کنفرانسی</h4>
-                                    <p class="small mb-0">مقالات ارائه شده در کنفرانس‌های ملی و بین‌المللی</p>
+                                    <h4 class="h5 mb-3 text-primary"><i class="fas fa-book-open me-2"></i>کتاب‌های عمومی</h4>
+                                    <p class="small mb-0">کتاب‌های عمومی، داستانی، رمان و سایر ژانرها</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
-                
+
                 <!-- بخش راه‌های ارتباطی -->
                 <section class="request-section">
                     <div class="section-header">
                         <i class="fas fa-comments section-icon"></i>
-                        <h2>درخواست مقاله از طریق</h2>
+                        <h2>درخواست کتاب از طریق</h2>
                     </div>
                     <div class="request-card">
-                        <p>برای درخواست مقاله مورد نظر خود، می‌توانید از طریق راه های ارتباطی موجود در این صفحه با ما تماس بگیرید. تیم پشتیبانی ما در اسرع وقت پاسخگوی شما خواهد بود.</p>
+                        <p>برای درخواست کتاب مورد نظر خود، می‌توانید از طریق راه های ارتباطی موجود در این صفحه با ما تماس بگیرید. تیم پشتیبانی ما در اسرع وقت پاسخگوی شما خواهد بود.</p>
 
                         <div class="request-methods-grid">
                             <div class="row">
                                 <div class="col-md-6 mb-4">
-                                    <a href="https://api.whatsapp.com/send?phone=0989179070298&text=%D8%AF%D8%B1%D8%AE%D9%88%D8%A7%D8%B3%D8%AA%20%D9%85%D9%82%D8%A7%D9%84%D9%87%20%D8%B9%D9%84%D9%85%DB%8C%20%C2%AB%D8%A8%D9%84%DB%8C%D8%A7%D9%86%C2%BB" target="_blank" class="request-method-card whatsapp">
+                                    <a href="https://api.whatsapp.com/send?phone=0989179070298&text=%D8%AF%D8%B1%D8%AE%D9%88%D8%A7%D8%B3%D8%AA%20%DA%A9%D8%AA%D8%A7%D8%A8%20%D8%A7%D9%84%DA%A9%D8%AA%D8%B1%D9%88%D9%86%DB%8C%DA%A9%DB%8C%20%C2%AB%D8%A8%D9%84%DB%8C%D8%A7%D9%86%C2%BB" target="_blank" class="request-method-card whatsapp">
                                         <div class="method-icon">
                                             <i class="fab fa-whatsapp"></i>
                                         </div>
@@ -552,25 +833,76 @@
                         </div>
 
                         <div class="request-info">
-                            <h3>اطلاعات مورد نیاز برای درخواست مقاله:</h3>
+                            <h3>اطلاعات مورد نیاز برای درخواست کتاب:</h3>
                             <ul>
-                                <li>عنوان دقیق مقاله</li>
-                                <li>نام نویسندگان مقاله</li>
-                                <li>نام ژورنال یا مجله علمی</li>
-                                <li>شماره DOI مقاله (در صورت امکان)</li>
-                                <li>لینک مقاله در سایت ناشر یا ژورنال (در صورت وجود)</li>
-                                <li>سال انتشار مقاله</li>
-                                <li>هرگونه اطلاعات دیگری که ممکن است به ما در یافتن مقاله کمک کند</li>
+                                <li>عنوان دقیق کتاب</li>
+                                <li>نام نویسنده یا نویسندگان</li>
+                                <li>ناشر کتاب (در صورت امکان)</li>
+                                <li>شماره ISBN کتاب (در صورت امکان)</li>
+                                <li>سال انتشار کتاب</li>
+                                <li>زبان کتاب (فارسی، انگلیسی، و...)</li>
+                                <li>هرگونه اطلاعات دیگری که ممکن است به ما در یافتن کتاب کمک کند</li>
                             </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- بخش مقایسه خدمات -->
+                <section class="request-section">
+                    <div class="section-header">
+                        <i class="fas fa-exchange-alt section-icon"></i>
+                        <h2>کدام خدمت مناسب شماست؟</h2>
+                    </div>
+                    <div class="request-card">
+                        <p class="text-center mb-4">کتابخانه دیجیتال بَلیان دو خدمت متفاوت برای دسترسی به منابع علمی ارائه می‌دهد:</p>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="compare-service-card article-service">
+                                    <div class="compare-service-icon">
+                                        <i class="fas fa-newspaper"></i>
+                                    </div>
+                                    <h3>درخواست مقاله</h3>
+                                    <ul class="compare-service-list">
+                                        <li>مقالات علمی و پژوهشی</li>
+                                        <li>مقالات ژورنال‌های معتبر</li>
+                                        <li>مقالات کنفرانسی</li>
+                                        <li>مناسب برای پژوهش‌های علمی و دانشگاهی</li>
+                                    </ul>
+                                    <a href="/request-article" class="compare-service-btn article-btn">
+                                        درخواست مقاله
+                                        <i class="fas fa-long-arrow-alt-left me-2"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 mb-4">
+                                <div class="compare-service-card book-service">
+                                    <div class="compare-service-icon">
+                                        <i class="fas fa-book-reader"></i>
+                                    </div>
+                                    <h3>درخواست کتاب</h3>
+                                    <ul class="compare-service-list">
+                                        <li>کتاب‌های الکترونیکی</li>
+                                        <li>کتاب‌های علمی و تخصصی</li>
+                                        <li>کتاب‌های عمومی و داستانی</li>
+                                        <li>مناسب برای مطالعه عمیق‌تر موضوعات</li>
+                                    </ul>
+                                    <a href="/request-book" class="compare-service-btn book-btn">
+                                        درخواست کتاب
+                                        <i class="fas fa-long-arrow-alt-left me-2"></i>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- بخش پایانی -->
                 <div class="request-footer">
-                    <i class="fas fa-newspaper"></i>
+                    <i class="fas fa-book-reader"></i>
                     <h3>دسترسی به دانش، حق همه است</h3>
-                    <p>با تشکر از انتخاب شما برای همکاری با کتابخانه دیجیتالی بلیان، ما متعهد هستیم تا دسترسی به مقالات علمی و تخصصی را برای همه پژوهشگران، دانشجویان و علاقه‌مندان فراهم کنیم. ما برای ارتقای سطح علمی جامعه تلاش می‌کنیم و امیدواریم با ارائه این خدمات، گامی مؤثر در مسیر پیشرفت علمی کشور برداریم.</p>
+                    <p>با تشکر از انتخاب شما برای همکاری با کتابخانه دیجیتالی بلیان، ما متعهد هستیم تا دسترسی به کتاب‌های الکترونیکی و منابع تخصصی را برای همه پژوهشگران، دانشجویان و علاقه‌مندان فراهم کنیم. ما برای ارتقای سطح علمی جامعه تلاش می‌کنیم و امیدواریم با ارائه این خدمات، گامی مؤثر در مسیر پیشرفت علمی کشور برداریم.</p>
                 </div>
             </div>
         </div>
@@ -629,30 +961,6 @@
                     }, 600);
                 });
             });
-
-            // افکت انیمیشن برای دکمه‌های پیام
-            const styleSheet = document.createElement('style');
-            styleSheet.textContent = `
-                @keyframes ripple {
-                    to {
-                        transform: scale(4);
-                        opacity: 0;
-                    }
-                }
-
-                @keyframes pulse {
-                    0% {
-                        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3);
-                    }
-                    70% {
-                        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-                    }
-                    100% {
-                        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-                    }
-                }
-            `;
-            document.head.appendChild(styleSheet);
 
             // پالس آیکون پیام راهنما
             const introIcon = document.querySelector('.intro-icon');
