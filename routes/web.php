@@ -42,6 +42,10 @@ Route::get('/dmca', function () {
     return view('pages.dmca');
 })->name('dmca');
 
+Route::get('/tracking', function () {
+    return view('pages.tracking');
+})->name('tracking');
+
 Route::get('/about', function () {
     return view('pages.about');
 })->name('about');
