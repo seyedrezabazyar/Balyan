@@ -13,12 +13,22 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
+            $table->string('username', 50)->unique()->comment('شناسه منحصر به فرد برای ورود کاربر');
+            $table->string('first_name', 100);
+            $table->string('last_name', 100);
+            $table->string('display_name', 200)->nullable()->comment('نام نمایشی سفارشی (اختیاری)');
+            $table->string('email')->nullable()->unique();
+            $table->string('phone', 20)->nullable()->unique();
+            $table->string('password')->nullable();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->timestamp('phone_verified_at')->nullable();
             $table->rememberToken();
+            $table->string('access_token_hash', 255)->nullable()->comment('برای دسترسی امن به صفحه سفارش');
+            $table->integer('access_level_id')->default(1);
+            $table->string('profile_image', 255)->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->timestamp('last_login_at')->nullable();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -46,4 +56,4 @@ return new class extends Migration
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
-};
+}
