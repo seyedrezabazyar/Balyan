@@ -2,6 +2,11 @@
 
 @section('title', 'ورود به حساب کاربری')
 
+@section('head')
+    <!-- فقط یک اسکریپت reCAPTCHA v3 -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6LeMU_oqAAAAAO8jwoh6Mmi--Wk9d8VADLX3fTpW"></script>
+@endsection
+
 @section('content')
     <div class="bl-login-page">
         <div class="bl-login-background">
@@ -40,6 +45,9 @@
 
                         <form method="POST" action="{{ route('login.identify') }}" class="bl-login-form">
                             @csrf
+
+                            <!-- برای دریافت توکن reCAPTCHA - این فیلد توسط جاوااسکریپت پر می‌شود -->
+                            <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
 
                             @if(request()->has('redirect'))
                                 <input type="hidden" name="redirect_to" value="{{ route('order.book', $book->md5 ?? '') }}">
@@ -118,14 +126,11 @@
                                 </div>
                             </div>
 
-                            <div class="bl-recaptcha-container mb-4">
-                                <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
-                                @error('g-recaptcha-response')
-                                <div class="invalid-feedback d-block mt-2">
-                                    {{ $message }}
-                                </div>
-                                @enderror
+                            @error('g-recaptcha-response')
+                            <div class="invalid-feedback d-block mt-2 mb-3">
+                                {{ $message }}
                             </div>
+                            @enderror
 
                             <div class="bl-login-actions">
                                 <button type="submit" class="btn btn-primary bl-btn-login">
@@ -626,9 +631,6 @@
 @endpush
 
 @push('scripts')
-    <!-- اسکریپت reCAPTCHA گوگل -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // مدیریت تغییر روش ورود
@@ -637,6 +639,22 @@
             const phoneInput = document.getElementById('phone');
             const emailInput = document.getElementById('email');
             const loginForm = document.querySelector('.bl-login-form');
+            const recaptchaResponse = document.getElementById('recaptchaResponse');
+
+            // اجرای reCAPTCHA هنگام بارگیری صفحه
+            grecaptcha.ready(function() {
+                grecaptcha.execute('6LeMU_oqAAAAAO8jwoh6Mmi--Wk9d8VADLX3fTpW', {action: 'login_page_load'})
+                    .then(function(token) {
+                        // تنظیم توکن اولیه
+                        if (recaptchaResponse) {
+                            recaptchaResponse.value = token;
+                            console.log('reCAPTCHA token set on page load');
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('reCAPTCHA Error:', error);
+                    });
+            });
 
             // تبدیل اعداد فارسی به انگلیسی
             const persianToEnglish = (str) => {
@@ -738,7 +756,12 @@
             // اعتبارسنجی فرم هنگام ارسال
             if (loginForm) {
                 loginForm.addEventListener('submit', function(e) {
+                    // مانع از ارسال فرم می‌شویم تا reCAPTCHA اجرا شود
+                    e.preventDefault();
+
+                    // بررسی اعتبارسنجی فیلدها
                     const activeMethod = document.querySelector('.bl-toggle-option.active').getAttribute('data-target');
+                    let isValid = true;
 
                     if (activeMethod === 'phone-input-section') {
                         // اعتبارسنجی شماره موبایل
@@ -746,7 +769,7 @@
                         const phonePattern = /^09\d{9}$/;
 
                         if (!phonePattern.test(phoneValue)) {
-                            e.preventDefault();
+                            isValid = false;
                             phoneInput.classList.add('is-invalid');
 
                             let feedback = document.querySelector('.bl-phone-input-container .invalid-feedback');
@@ -764,7 +787,7 @@
                         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
                         if (!emailPattern.test(emailValue)) {
-                            e.preventDefault();
+                            isValid = false;
                             emailInput.classList.add('is-invalid');
 
                             let feedback = document.querySelector('.bl-email-input-container .invalid-feedback');
@@ -776,6 +799,26 @@
 
                             feedback.textContent = 'لطفاً یک آدرس ایمیل معتبر وارد کنید';
                         }
+                    }
+
+                    if (isValid) {
+                        // دریافت توکن reCAPTCHA جدید
+                        grecaptcha.ready(function() {
+                            grecaptcha.execute('6LeMU_oqAAAAAO8jwoh6Mmi--Wk9d8VADLX3fTpW', {action: 'login_submit'})
+                                .then(function(token) {
+                                    // تنظیم توکن
+                                    recaptchaResponse.value = token;
+                                    console.log('reCAPTCHA token refreshed');
+
+                                    // حالا فرم را ارسال می‌کنیم
+                                    loginForm.submit();
+                                })
+                                .catch(function(error) {
+                                    console.error('Error getting reCAPTCHA token:', error);
+                                    // حتی در صورت خطا فرم را ارسال می‌کنیم
+                                    loginForm.submit();
+                                });
+                        });
                     }
                 });
             }

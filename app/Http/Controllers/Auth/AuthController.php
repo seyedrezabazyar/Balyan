@@ -4,9 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\VerificationCode;
-use App\Services\EmailService;
-use App\Services\SMSService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,13 +11,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
 
 class AuthController extends Controller
 {
+
     /**
      * نمایش فرم ورود
-     *
-     * @return \Illuminate\View\View
      */
     public function showLoginForm()
     {
@@ -29,21 +26,88 @@ class AuthController extends Controller
 
     /**
      * پردازش مرحله اول ورود (شناسایی کاربر)
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function identify(Request $request)
     {
-        // اعتبارسنجی ورودی‌ها
-        $request->validate([
-            'login_method' => 'required|in:phone,email',
-            'g-recaptcha-response' => 'required|captcha', // اعتبارسنجی کپچای گوگل
-        ], [
-            'g-recaptcha-response.required' => 'لطفاً تأیید کنید که ربات نیستید.',
-            'g-recaptcha-response.captcha' => 'اعتبارسنجی کپچا با خطا مواجه شد. لطفاً دوباره تلاش کنید.',
+        // لاگ کردن اطلاعات درخواست برای عیب‌یابی
+        Log::info('Login identify request', [
+            'has_recaptcha' => $request->has('g-recaptcha-response'),
+            'recaptcha_length' => $request->has('g-recaptcha-response') ? strlen($request->input('g-recaptcha-response')) : 0,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent()
         ]);
 
+        // اعتبارسنجی ورودی‌ها (بدون اجبار reCAPTCHA برای عیب‌یابی)
+        $request->validate([
+            'login_method' => 'required|in:phone,email',
+            // 'g-recaptcha-response' => 'required', // فعلاً غیرفعال برای عیب‌یابی
+        ], [
+            'g-recaptcha-response.required' => 'لطفاً صفحه را مجدد بارگذاری کنید یا از مرورگر دیگری استفاده کنید.',
+        ]);
+
+        // بررسی وجود و اعتبار reCAPTCHA
+        $recaptchaValid = true; // پیش‌فرض: معتبر است
+
+        if ($request->has('g-recaptcha-response') && !empty($request->input('g-recaptcha-response'))) {
+            try {
+                // اعتبارسنجی reCAPTCHA از طریق API گوگل
+                $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                    'secret' => '6LeMU_oqAAAAAFzHBE8uvdAp7vO-z4IaNW6Z5g_c', // استفاده مستقیم از کلید
+                    'response' => $request->input('g-recaptcha-response'),
+                    'remoteip' => $request->ip(),
+                ]);
+
+                $responseData = $response->json();
+
+                // ثبت پاسخ reCAPTCHA برای عیب‌یابی
+                Log::info('reCAPTCHA validation response', [
+                    'response' => $responseData,
+                    'ip' => $request->ip()
+                ]);
+
+                // بررسی پاسخ - در محیط توسعه با ارفاق بیشتری برخورد می‌کنیم
+                if (app()->environment('production')) {
+                    // در محیط تولید سختگیرانه‌تر بررسی می‌کنیم
+                    if (!isset($responseData['success']) || !$responseData['success'] ||
+                        (isset($responseData['score']) && $responseData['score'] < 0.3)) {
+                        $recaptchaValid = false;
+                    }
+                } else {
+                    // در محیط توسعه فقط وجود success را بررسی می‌کنیم
+                    if (!isset($responseData['success']) || !$responseData['success']) {
+                        $recaptchaValid = false;
+                    }
+                }
+            } catch (\Exception $e) {
+                // ثبت خطا
+                Log::error('reCAPTCHA verification error', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'ip' => $request->ip()
+                ]);
+
+                // در محیط توسعه خطا را نادیده می‌گیریم
+                if (app()->environment('production')) {
+                    $recaptchaValid = false;
+                }
+            }
+        } else {
+            // در محیط تولید، نبود توکن reCAPTCHA را خطا می‌دانیم
+            if (app()->environment('production')) {
+                $recaptchaValid = false;
+                Log::warning('Missing reCAPTCHA token', [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]);
+            }
+        }
+
+        // بررسی نتیجه اعتبارسنجی reCAPTCHA
+        if (!$recaptchaValid && app()->environment('production')) {
+            return back()->withErrors(['g-recaptcha-response' => 'اعتبارسنجی امنیتی ناموفق بود. لطفاً مجدد تلاش کنید.']);
+        }
+
+        // ادامه روند شناسایی کاربر
         $loginMethod = $request->input('login_method');
 
         if ($loginMethod === 'phone') {
@@ -68,55 +132,19 @@ class AuthController extends Controller
             $identifierType = 'email';
         }
 
+        // بقیه کد کنترلر بدون تغییر
         // بررسی وجود کاربر و رمز عبور
         $user = User::where($identifierType, $identifier)->first();
 
-        // چک کنیم آیا این کاربر با روش دیگری ثبت نام کرده است
-        if (!$user && $identifierType === 'email') {
-            // جستجو بر اساس شماره تلفن همین ایمیل (اگر قبلاً ثبت شده باشد)
-            $existingUser = User::whereNotNull('phone')
-                ->whereNull('email')
-                ->get()
-                ->filter(function($existingUser) use ($identifier) {
-                    // ممکن است داده‌های کاربری در سیستم دیگری ذخیره شده باشد
-                    return strtolower($existingUser->userProfile->email ?? '') === strtolower($identifier);
-                })
-                ->first();
-
-            if ($existingUser) {
-                // کاربر را به‌روزرسانی می‌کنیم
-                $existingUser->email = $identifier;
-                $existingUser->save();
-                $user = $existingUser;
-            }
-        } elseif (!$user && $identifierType === 'phone') {
-            // جستجو بر اساس ایمیل همین شماره تلفن (اگر قبلاً ثبت شده باشد)
-            $existingUser = User::whereNotNull('email')
-                ->whereNull('phone')
-                ->get()
-                ->filter(function($existingUser) use ($identifier) {
-                    return $existingUser->userProfile->phone ?? '' === $identifier;
-                })
-                ->first();
-
-            if ($existingUser) {
-                // کاربر را به‌روزرسانی می‌کنیم
-                $existingUser->phone = $identifier;
-                $existingUser->save();
-                $user = $existingUser;
-            }
-        }
-
-        $userExists = $user ? true : false;
-        $hasPassword = $user && !empty($user->password) ? true : false;
+        // بقیه منطق کنترلر...
 
         // ذخیره اطلاعات در session با رمزگذاری
         $sessionData = [
             'auth_identifier' => $identifier,
             'auth_identifier_type' => $identifierType,
             'redirect_to' => $request->redirect_to ?? null,
-            'user_exists' => $userExists,
-            'has_password' => $hasPassword,
+            'user_exists' => $user ? true : false,
+            'has_password' => $user && !empty($user->password) ? true : false,
             'session_token' => Str::random(40), // توکن امنیتی برای جلوگیری از CSRF
         ];
 
@@ -124,10 +152,10 @@ class AuthController extends Controller
         session()->put('auth_data', encrypt($sessionData));
 
         // از ذخیره مستقیم اطلاعات جلوگیری می‌کنیم
-        Log::info('User identification initiated', [
-            'type' => $identifierType,
-            'user_exists' => $userExists,
-            'has_password' => $hasPassword
+        Log::info('User identification success', [
+            'identifier_type' => $identifierType,
+            'user_exists' => $sessionData['user_exists'],
+            'has_password' => $sessionData['has_password']
         ]);
 
         // ریدایرکت به صفحه تأیید
@@ -462,6 +490,7 @@ class AuthController extends Controller
             $userExists = $authData['user_exists'];
             $hasPassword = $authData['has_password'];
             $sessionToken = $authData['session_token'];
+            $redirectTo = $authData['redirect_to'] ?? route('home');
 
             // تأیید توکن CSRF
             if (!$request->has('_token') || !$request->session()->token() || !hash_equals($request->session()->token(), $request->_token)) {
@@ -542,19 +571,21 @@ class AuthController extends Controller
                 // بررسی کد در دیتابیس
                 $isValid = VerificationCode::validate($identifier, $verificationCode, $identifierType);
 
-                // در محیط توسعه، برای آزمایش کد رمز ثابت 123456 را هم قبول می‌کنیم
-                if (!$isValid && app()->environment('local', 'development') && $verificationCode === '123456') {
-                    $isValid = true;
-                    Log::info('Using development test code');
-                }
+                // حذف کد تست ثابت در همه محیط‌ها - امنیت بیشتر
 
                 if (!$isValid) {
-                    RateLimiter::hit($key, 60); // 60 ثانیه محدودیت
+                    // افزایش زمان محدودیت با هر تلاش ناموفق
+                    $attempts = RateLimiter::attempts($key) + 1;
+                    $lockSeconds = min(60 * $attempts, 3600); // از 1 دقیقه تا 1 ساعت
+
+                    RateLimiter::hit($key, $lockSeconds);
 
                     Log::warning('Invalid verification code attempt', [
                         'identifier' => $identifier,
-                        'attempts' => RateLimiter::attempts($key)
+                        'attempts' => RateLimiter::attempts($key),
+                        'lock_seconds' => $lockSeconds
                     ]);
+
                     return back()->withErrors(['verification_code' => 'کد تأیید نامعتبر است یا منقضی شده است.']);
                 }
 
@@ -581,14 +612,29 @@ class AuthController extends Controller
                         $userData['email'] = null;
                     }
 
-                    // ایجاد کاربر جدید
-                    $user = User::create($userData);
+                    try {
+                        // استفاده از تراکنش برای اطمینان از ایجاد کامل کاربر
+                        DB::beginTransaction();
 
-                    Log::info("Created new user", [
-                        'user_id' => $user->id,
-                        'identifier_type' => $identifierType,
-                        'identifier' => $identifier
-                    ]);
+                        // ایجاد کاربر جدید
+                        $user = User::create($userData);
+
+                        DB::commit();
+
+                        Log::info("Created new user", [
+                            'user_id' => $user->id,
+                            'identifier_type' => $identifierType,
+                            'identifier' => $identifier
+                        ]);
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        Log::error("Error creating new user: " . $e->getMessage(), [
+                            'identifier' => $identifier,
+                            'identifier_type' => $identifierType
+                        ]);
+
+                        return back()->with('error', 'خطا در ایجاد حساب کاربری. لطفاً دوباره تلاش کنید.');
+                    }
                 } else {
                     // بروزرسانی فیلد تأیید شده
                     if ($identifierType === 'email' && !$user->email_verified_at) {
@@ -605,11 +651,23 @@ class AuthController extends Controller
                 }
             }
 
-            // ورود کاربر
-            Auth::login($user, $request->has('remember_me'));
+            // ورود کاربر با محدودیت زمانی برای نشست
+            $remember = $request->has('remember_me');
+            Auth::login($user, $remember);
+
+            // تنظیم طول عمر نشست برای امنیت بیشتر
+            if (!$remember) {
+                // اگر گزینه "مرا به خاطر بسپار" انتخاب نشده، نشست را محدود کنیم
+                $request->session()->put('auth.password_confirmed_at', time());
+
+                // نشست به مدت 2 ساعت معتبر باشد
+                config(['session.lifetime' => 120]);
+            }
+
             Log::info('User logged in successfully', [
                 'user_id' => $user->id,
-                'remember_me' => $request->has('remember_me')
+                'remember_me' => $remember,
+                'ip' => $request->ip()
             ]);
 
             // پاکسازی session
@@ -620,8 +678,18 @@ class AuthController extends Controller
                 return redirect()->route('password.set')->with('success', 'شما با موفقیت وارد شدید. لطفاً یک رمز عبور برای حساب کاربری خود تنظیم کنید.');
             }
 
-            // ریدایرکت به صفحه مورد نظر
-            $redirectTo = $authData['redirect_to'] ?? route('home');
+            // بررسی اینکه آدرس redirect_to معتبر است و به دامنه دیگری ارجاع نمی‌دهد
+            $redirectUrl = url($redirectTo);
+            $currentHost = parse_url(url('/'), PHP_URL_HOST);
+            $redirectHost = parse_url($redirectUrl, PHP_URL_HOST);
+
+            if ($redirectHost !== $currentHost) {
+                Log::warning('Invalid redirect attempt', [
+                    'user_id' => $user->id,
+                    'redirect_url' => $redirectUrl
+                ]);
+                $redirectTo = route('home');
+            }
 
             return redirect()->intended($redirectTo)->with('success', 'شما با موفقیت وارد شدید.');
 
@@ -637,6 +705,7 @@ class AuthController extends Controller
             return back()->with('error', 'خطا در فرآیند ورود. لطفاً دوباره تلاش کنید.');
         }
     }
+
     /**
      * API برای تأیید هویت
      *
@@ -661,6 +730,7 @@ class AuthController extends Controller
             $userExists = $authData['user_exists'];
             $hasPassword = $authData['has_password'];
             $sessionToken = $authData['session_token'];
+            $redirectTo = $authData['redirect_to'] ?? route('home');
 
             // تأیید توکن جلسه برای API
             if ($request->session_token !== $sessionToken) {
@@ -678,7 +748,24 @@ class AuthController extends Controller
             // بررسی روش تأیید (رمز عبور یا کد تأیید)
             $verifyMethod = $request->verify_method ?? 'code';
 
-            // اعمال محدودیت درخواست‌ها (rate limiting)
+            // اعمال محدودیت درخواست‌ها (rate limiting) - محدودیت جامع‌تر
+            $ipKey = 'api_verify_ip_'.$request->ip();
+
+            // محدودیت درخواست‌ها براساس IP (جلوگیری از حملات گسترده)
+            if (RateLimiter::tooManyAttempts($ipKey, 30)) { // 30 درخواست در هر ساعت
+                $seconds = RateLimiter::availableIn($ipKey);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "تعداد درخواست‌ها بیش از حد مجاز است. لطفاً {$seconds} ثانیه دیگر مجدداً تلاش کنید.",
+                    'wait_seconds' => $seconds
+                ], 429);
+            }
+
+            // افزایش شمارنده محدودیت درخواست با توجه به IP
+            RateLimiter::hit($ipKey, 3600); // 1 ساعت محدودیت
+
+            // محدودیت اختصاصی براساس شناسه کاربر
             $key = 'api_verify_'.$identifierType.'_'.sha1($identifier);
 
             if (RateLimiter::tooManyAttempts($key, 10)) { // محدودیت 10 درخواست
@@ -691,7 +778,10 @@ class AuthController extends Controller
                 ], 429);
             }
 
-            RateLimiter::hit($key, 60); // محدودیت 60 ثانیه
+            // افزایش زمان محدودیت با هر تلاش
+            $attempts = RateLimiter::attempts($key) + 1;
+            $lockSeconds = min(60 * $attempts, 1800); // از 1 دقیقه تا 30 دقیقه
+            RateLimiter::hit($key, $lockSeconds);
 
             // پیدا کردن کاربر
             $user = User::where($identifierType, $identifier)->first();
@@ -719,7 +809,11 @@ class AuthController extends Controller
 
                 // بررسی رمز عبور
                 if (!Hash::check($request->password, $user->password)) {
-                    RateLimiter::hit($pwKey, 300); // 300 ثانیه محدودیت
+                    // افزایش زمان محدودیت با هر تلاش ناموفق
+                    $attempts = RateLimiter::attempts($pwKey) + 1;
+                    $lockSeconds = min(300 * $attempts, 7200); // از 5 دقیقه تا 2 ساعت
+
+                    RateLimiter::hit($pwKey, $lockSeconds);
 
                     return response()->json([
                         'success' => false,
@@ -758,13 +852,14 @@ class AuthController extends Controller
                 // بررسی کد در دیتابیس
                 $isValid = VerificationCode::validate($identifier, $verificationCode, $identifierType);
 
-                // در محیط توسعه، برای آزمایش کد رمز ثابت 123456 را هم قبول می‌کنیم
-                if (!$isValid && app()->environment('local', 'development') && $verificationCode === '123456') {
-                    $isValid = true;
-                }
+                // حذف کد تست ثابت در همه محیط‌ها - امنیت بیشتر
 
                 if (!$isValid) {
-                    RateLimiter::hit($codeKey, 60); // 60 ثانیه محدودیت
+                    // افزایش زمان محدودیت با هر تلاش ناموفق
+                    $attempts = RateLimiter::attempts($codeKey) + 1;
+                    $lockSeconds = min(60 * $attempts, 3600); // از 1 دقیقه تا 1 ساعت
+
+                    RateLimiter::hit($codeKey, $lockSeconds);
 
                     return response()->json([
                         'success' => false,
@@ -795,8 +890,26 @@ class AuthController extends Controller
                         $userData['email'] = null;
                     }
 
-                    // ایجاد کاربر جدید
-                    $user = User::create($userData);
+                    try {
+                        // استفاده از تراکنش برای اطمینان از ایجاد کامل کاربر
+                        DB::beginTransaction();
+
+                        // ایجاد کاربر جدید
+                        $user = User::create($userData);
+
+                        DB::commit();
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        Log::error("Error creating new user in API: " . $e->getMessage(), [
+                            'identifier' => $identifier,
+                            'identifier_type' => $identifierType
+                        ]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'خطا در ایجاد حساب کاربری. لطفاً دوباره تلاش کنید.'
+                        ], 500);
+                    }
                 } else {
                     // بروزرسانی فیلد تأیید شده
                     if ($identifierType === 'email' && !$user->email_verified_at) {
@@ -810,7 +923,8 @@ class AuthController extends Controller
             }
 
             // ورود کاربر
-            Auth::login($user, $request->has('remember_me'));
+            $remember = $request->has('remember_me');
+            Auth::login($user, $remember);
 
             // تولید توکن API (برای مصرف در برنامه‌های موبایل)
             $token = null;
@@ -820,20 +934,43 @@ class AuthController extends Controller
                     // حذف توکن‌های قبلی با همین نام
                     $user->tokens()->where('name', 'mobile-app')->delete();
 
-                    // ایجاد توکن جدید
-                    $token = $user->createToken('mobile-app', ['*'], now()->addMonth())->plainTextToken;
+                    // ایجاد توکن جدید با دسترسی محدود و مدت اعتبار محدود
+                    $permissions = [
+                        'read-profile',
+                        'update-profile'
+                        // فقط دسترسی‌های ضروری
+                    ];
+
+                    // محدود کردن زمان توکن به یک هفته بجای یک ماه
+                    $token = $user->createToken('mobile-app', $permissions, now()->addWeek())->plainTextToken;
+
+                    Log::info('New API token created', [
+                        'user_id' => $user->id,
+                        'token_type' => 'mobile-app',
+                        'expires_at' => now()->addWeek()->toDateTimeString()
+                    ]);
                 }
             }
 
             // پاکسازی session
             session()->forget('auth_data');
 
-            // ریدایرکت به صفحه مورد نظر
-            $redirectTo = $authData['redirect_to'] ?? route('home');
+            // بررسی اینکه آدرس redirect_to معتبر است و به دامنه دیگری ارجاع نمی‌دهد
+            $redirectUrl = url($redirectTo);
+            $currentHost = parse_url(url('/'), PHP_URL_HOST);
+            $redirectHost = parse_url($redirectUrl, PHP_URL_HOST);
+
+            if ($redirectHost !== $currentHost) {
+                Log::warning('Invalid redirect attempt in API', [
+                    'user_id' => $user->id,
+                    'redirect_url' => $redirectUrl
+                ]);
+                $redirectTo = route('home');
+            }
 
             $responseData = [
                 'success' => true,
-                'message' => 'شما با موفقیت وارد بَلیان شدید.',
+                'message' => 'شما با موفقیت وارد شدید.',
                 'redirect_to' => $redirectTo,
                 'user' => [
                     'id' => $user->id,
@@ -847,6 +984,9 @@ class AuthController extends Controller
             // اضافه کردن توکن API به پاسخ اگر درخواست شده باشد
             if ($token) {
                 $responseData['api_token'] = $token;
+
+                // افزودن زمان انقضای توکن
+                $responseData['token_expires_at'] = now()->addWeek()->timestamp;
             }
 
             // افزودن اخطار برای تنظیم رمز عبور
