@@ -2,10 +2,10 @@
 
 @section('title', 'ورود به حساب کاربری')
 
-@section('head')
-    <!-- فقط یک اسکریپت reCAPTCHA v3 -->
-    <script src="https://www.google.com/recaptcha/api.js?render=6LeMU_oqAAAAAO8jwoh6Mmi--Wk9d8VADLX3fTpW"></script>
-@endsection
+@push('head')
+    <!-- بارگذاری اسکریپت reCAPTCHA v3 با کلید سایت جدید -->
+    <script src="https://www.google.com/recaptcha/api.js?render={{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}"></script>
+@endpush
 
 @section('content')
     <div class="bl-login-page">
@@ -46,7 +46,7 @@
                         <form method="POST" action="{{ route('login.identify') }}" class="bl-login-form">
                             @csrf
 
-                            <!-- برای دریافت توکن reCAPTCHA - این فیلد توسط جاوااسکریپت پر می‌شود -->
+                            <!-- فیلد مخفی reCAPTCHA -->
                             <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
 
                             @if(request()->has('redirect'))
@@ -127,8 +127,13 @@
                             </div>
 
                             @error('g-recaptcha-response')
-                            <div class="invalid-feedback d-block mt-2 mb-3">
-                                {{ $message }}
+                            <div class="alert alert-danger bl-custom-alert mb-3">
+                                <div class="bl-alert-icon">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </div>
+                                <div class="bl-alert-content">
+                                    {{ $message }}
+                                </div>
                             </div>
                             @enderror
 
@@ -633,7 +638,9 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // مدیریت تغییر روش ورود
+            console.log('DOM loaded, initializing form...');
+
+            // متغیرهای مربوط به فرم
             const toggleOptions = document.querySelectorAll('.bl-toggle-option');
             const inputSections = document.querySelectorAll('.bl-input-section');
             const phoneInput = document.getElementById('phone');
@@ -641,20 +648,38 @@
             const loginForm = document.querySelector('.bl-login-form');
             const recaptchaResponse = document.getElementById('recaptchaResponse');
 
-            // اجرای reCAPTCHA هنگام بارگیری صفحه
-            grecaptcha.ready(function() {
-                grecaptcha.execute('6LeMU_oqAAAAAO8jwoh6Mmi--Wk9d8VADLX3fTpW', {action: 'login_page_load'})
-                    .then(function(token) {
-                        // تنظیم توکن اولیه
-                        if (recaptchaResponse) {
-                            recaptchaResponse.value = token;
-                            console.log('reCAPTCHA token set on page load');
+            // تابع ساده برای دریافت توکن reCAPTCHA - با کلید جدید
+            function getRecaptchaToken(action) {
+                console.log('Attempting to get reCAPTCHA token for action: ' + action);
+
+                if (typeof grecaptcha !== 'undefined' && grecaptcha) {
+                    grecaptcha.ready(function() {
+                        try {
+                            grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: action})
+                                .then(function(token) {
+                                    if (recaptchaResponse) {
+                                        recaptchaResponse.value = token;
+                                        console.log('reCAPTCHA token set (first 10 chars): ' + token.substring(0, 10) + '...');
+                                    } else {
+                                        console.error('recaptchaResponse element not found');
+                                    }
+                                })
+                                .catch(function(error) {
+                                    console.error('Error executing reCAPTCHA:', error);
+                                });
+                        } catch (error) {
+                            console.error('Error in grecaptcha.execute:', error);
                         }
-                    })
-                    .catch(function(error) {
-                        console.error('reCAPTCHA Error:', error);
                     });
-            });
+                } else {
+                    console.error('grecaptcha not available');
+                }
+            }
+
+            // تست توکن reCAPTCHA در بارگذاری صفحه
+            setTimeout(function() {
+                getRecaptchaToken('login_page_load');
+            }, 1000);
 
             // تبدیل اعداد فارسی به انگلیسی
             const persianToEnglish = (str) => {
@@ -756,8 +781,10 @@
             // اعتبارسنجی فرم هنگام ارسال
             if (loginForm) {
                 loginForm.addEventListener('submit', function(e) {
-                    // مانع از ارسال فرم می‌شویم تا reCAPTCHA اجرا شود
+                    // مانع از ارسال فرم می‌شویم تا اعتبارسنجی انجام شود
                     e.preventDefault();
+
+                    console.log('Form submit event triggered');
 
                     // بررسی اعتبارسنجی فیلدها
                     const activeMethod = document.querySelector('.bl-toggle-option.active').getAttribute('data-target');
@@ -802,23 +829,55 @@
                     }
 
                     if (isValid) {
-                        // دریافت توکن reCAPTCHA جدید
-                        grecaptcha.ready(function() {
-                            grecaptcha.execute('6LeMU_oqAAAAAO8jwoh6Mmi--Wk9d8VADLX3fTpW', {action: 'login_submit'})
-                                .then(function(token) {
-                                    // تنظیم توکن
-                                    recaptchaResponse.value = token;
-                                    console.log('reCAPTCHA token refreshed');
+                        // نمایش حالت در حال پردازش
+                        const submitButton = loginForm.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            const btnText = submitButton.querySelector('.bl-btn-text');
+                            if (btnText) {
+                                btnText.textContent = 'در حال پردازش...';
+                            }
+                        }
 
-                                    // حالا فرم را ارسال می‌کنیم
-                                    loginForm.submit();
-                                })
-                                .catch(function(error) {
-                                    console.error('Error getting reCAPTCHA token:', error);
-                                    // حتی در صورت خطا فرم را ارسال می‌کنیم
-                                    loginForm.submit();
+                        // تلاش برای گرفتن توکن reCAPTCHA
+                        if (typeof grecaptcha !== 'undefined' && grecaptcha) {
+                            try {
+                                grecaptcha.ready(function() {
+                                    grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: 'login_submit'})
+                                        .then(function(token) {
+                                            if (recaptchaResponse) {
+                                                recaptchaResponse.value = token;
+                                                console.log('Token set for submission (first 10 chars): ' + token.substring(0, 10) + '...');
+                                            }
+                                            // ارسال فرم بعد از دریافت توکن
+                                            console.log('Submitting form after getting token');
+                                            loginForm.submit();
+                                        })
+                                        .catch(function(error) {
+                                            console.error('Error getting token:', error);
+                                            // ارسال فرم حتی در صورت خطا
+                                            console.log('Submitting form despite token error');
+                                            loginForm.submit();
+                                        });
                                 });
-                        });
+                            } catch (error) {
+                                console.error('Fatal error in reCAPTCHA execution:', error);
+                                // ارسال فرم در صورت خطا
+                                console.log('Submitting form despite fatal error');
+                                loginForm.submit();
+                            }
+                        } else {
+                            console.log('grecaptcha not available, submitting form directly');
+                            loginForm.submit();
+                        }
+
+                        // زمان‌سنج امنیتی - اگر بعد از 3 ثانیه هنوز ارسال نشده، آن را ارسال کن
+                        setTimeout(function() {
+                            if (submitButton && submitButton.disabled) {
+                                console.log('3-second timeout reached, forcing form submission');
+                                loginForm.submit();
+                            }
+                        }, 3000);
                     }
                 });
             }

@@ -26,6 +26,8 @@
     <link rel="icon" href="{{ asset('images/favicon.ico') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
 
+    @stack('head')
+
     @stack('styles')
 </head>
 <body>
