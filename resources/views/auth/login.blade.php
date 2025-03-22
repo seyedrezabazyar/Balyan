@@ -43,7 +43,7 @@
                             </div>
                         @endif
 
-                        <form method="POST" action="{{ route('login.identify') }}" class="bl-login-form">
+                        <form method="POST" action="{{ route('auth.identify') }}" class="bl-login-form">
                             @csrf
 
                             <!-- فیلد مخفی reCAPTCHA -->

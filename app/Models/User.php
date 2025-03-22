@@ -2,47 +2,79 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'username',
+        'first_name',
+        'last_name',
+        'display_name',
         'email',
+        'phone',
         'password',
+        'access_level_id',
+        'profile_image',
+        'is_active',
+        'last_login_at',
+        'access_token_hash'
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
         'remember_token',
+        'access_token_hash', //  این رو هم مخفی کنید
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'phone_verified_at' => 'datetime', // اضافه شد
+        'last_login_at' => 'datetime',
+        'is_active' => 'boolean',
+        'password' => 'hashed', // اگر از لاراول 10 به بالا استفاده می‌کنید، نیازی به این نیست
+    ];
+
+    /**
+     * Route notifications for the mail channel.
+     *
+     * @return  array<string, string>|string
+     */
+    public function routeNotificationForMail(): array|string
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        // اگر کاربر هم ایمیل و هم نام داشته باشه، از این فرمت استفاده می‌کنیم:
+        if ($this->email && $this->first_name) {
+            return [$this->email => $this->first_name];
+        }
+        // در غیر این صورت، فقط ایمیل رو برمی‌گردونیم
+        return $this->email;
+    }    /**
+ * Route notifications for the Vonage channel.
+ *
+ * @return string
+ */
+    public function routeNotificationForVonage(): string
+    {
+        return $this->phone;
     }
 }
