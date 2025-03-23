@@ -64,7 +64,7 @@ trait SendsVerificationCodes
             // اگر کلاس MailVerificationCode وجود نداشت، یک روش ساده‌تر استفاده می‌کنیم
             // این کد فقط برای نمایش است و در تولید باید جایگزین شود
             $subject = 'کد تأیید بَلیان';
-            $message = "کد تأیید شما: {$code}\n\nاین کد تا 15 دقیقه معتبر است.";
+            $message = "کد تأیید شما: {$code}\n\nاین کد تا 5 دقیقه معتبر است.";
 
             // در اینجا از ارسال واقعی ایمیل صرف نظر می‌کنیم و فقط لاگ می‌کنیم
             Log::info("Verification code would be sent to email", [
@@ -118,7 +118,7 @@ trait SendsVerificationCodes
             }
 
             // پیام متنی
-            $message = "کد تأیید بَلیان: {$code}\nاین کد تا 15 دقیقه معتبر است.";
+            $message = "کد تأیید بَلیان: {$code}\nاین کد تا 5 دقیقه معتبر است.";
 
             // بررسی برای سرویس پیامک در container
             if (app()->bound('sms')) {

@@ -92,7 +92,7 @@
                                 <div class="tab-content" id="verify-method-content">
                                     <!-- تب رمز عبور -->
                                     <div class="tab-pane fade show active" id="password-content" role="tabpanel" aria-labelledby="password-tab">
-                                        <form method="POST" action="{{ route('auth.verify') }}" class="password-form">
+                                        <form method="POST" action="{{ route('auth.login-password') }}" class="password-form">
                                             @csrf
                                             <input type="hidden" name="verify_method" value="password">
 
@@ -163,7 +163,7 @@
                                             </div>
                                         @endif
 
-                                        <form method="POST" action="{{ route('auth.verify') }}" class="code-form">
+                                        <form method="POST" action="{{ route('auth.verify-code') }}" class="code-form">
                                             @csrf
                                             <input type="hidden" name="verify_method" value="code">
                                             <input type="hidden" name="verification_code" id="verification_code">
@@ -218,7 +218,7 @@
                                 </div>
                             @else
                                 <!-- کاربر جدید یا بدون رمز عبور - فقط کد تأیید -->
-                                <form method="POST" action="{{ route('auth.verify') }}" class="code-form">
+                                <form method="POST" action="{{ route('auth.verify-code') }}" class="code-form">
                                     @csrf
                                     <input type="hidden" name="verify_method" value="code">
                                     <input type="hidden" name="verification_code" id="verification_code">
@@ -281,7 +281,7 @@
                         </div>
 
                         <div class="verify-footer">
-                            <p class="privacy-text">ورود شما به معنای پذیرش <a href="#">قوانین و مقررات</a> کتاب‌یار است</p>
+                            <p class="privacy-text">ورود شما به معنای پذیرش <a href="{{ route('terms') }}">قوانین و مقررات</a> کتاب‌یار است</p>
                         </div>
                     </div>
                 </div>
@@ -716,6 +716,8 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Script initialized'); // برای اشکال‌زدایی
+
             // مدیریت فیلدهای کد تأیید
             const codeInputs = document.querySelectorAll('.code-input');
             const hiddenInput = document.getElementById('verification_code');
@@ -725,6 +727,26 @@
             const resendContainer = document.getElementById('resend-container');
             const resendButton = document.getElementById('resend-code-btn');
             const statusMessage = document.getElementById('status-message');
+
+            // بررسی وجود المان‌های مورد نیاز
+            console.log('Required elements found:', {
+                codeInputs: codeInputs.length,
+                hiddenInput: !!hiddenInput,
+                expiresAtElement: !!expiresAtElement,
+                codeExpiredElement: !!codeExpiredElement,
+                countdownElement: !!countdownElement,
+                resendContainer: !!resendContainer,
+                resendButton: !!resendButton,
+                statusMessage: !!statusMessage
+            });
+
+            // بررسی تنظیمات CSRF
+            const metaCsrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (!metaCsrfToken) {
+                console.error('CSRF token meta tag not found!');
+            } else {
+                console.log('CSRF token meta tag found');
+            }
 
             let timerInterval;
 
@@ -896,35 +918,46 @@
                     const identifier = this.getAttribute('data-identifier');
                     const originalText = this.innerHTML;
 
+                    console.log('Send code button clicked', { type, identifier });
+
                     // غیرفعال کردن دکمه
                     this.disabled = true;
                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>در حال ارسال...</span>';
+
+                    // گرفتن CSRF توکن
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
                     // ارسال درخواست به سرور
                     fetch('/auth/send-verification-code', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
                         },
                         body: JSON.stringify({
                             identifier_type: type,
                             identifier: identifier
                         })
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            console.log('Response status:', response.status);
+                            return response.json();
+                        })
                         .then(data => {
+                            console.log('Response data:', data);
+
                             if (data.success) {
                                 // نمایش پیام موفقیت
                                 const alertHTML = `
-                                <div class="alert alert-success custom-alert mb-4">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-check-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        ${data.message}
-                                    </div>
+                            <div class="alert alert-success custom-alert mb-4">
+                                <div class="alert-icon">
+                                    <i class="fas fa-check-circle"></i>
                                 </div>
+                                <div class="alert-content">
+                                    ${data.message}
+                                </div>
+                            </div>
                             `;
 
                                 // اضافه کردن پیام به بالای فرم
@@ -934,14 +967,14 @@
                                 // در محیط توسعه، کد را نمایش دهید
                                 if (data.dev_code) {
                                     const devCodeHTML = `
-                                    <div class="alert alert-info custom-alert mb-4">
-                                        <div class="alert-icon">
-                                            <i class="fas fa-info-circle"></i>
-                                        </div>
-                                        <div class="alert-content">
-                                            <strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}
-                                        </div>
+                                <div class="alert alert-info custom-alert mb-4">
+                                    <div class="alert-icon">
+                                        <i class="fas fa-info-circle"></i>
                                     </div>
+                                    <div class="alert-content">
+                                        <strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}
+                                    </div>
+                                </div>
                                 `;
                                     form.insertAdjacentHTML('beforebegin', devCodeHTML);
                                 }
@@ -965,14 +998,14 @@
                             } else {
                                 // نمایش پیام خطا
                                 const alertHTML = `
-                                <div class="alert alert-danger custom-alert mb-4">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-exclamation-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        ${data.message}
-                                    </div>
+                            <div class="alert alert-danger custom-alert mb-4">
+                                <div class="alert-icon">
+                                    <i class="fas fa-exclamation-circle"></i>
                                 </div>
+                                <div class="alert-content">
+                                    ${data.message}
+                                </div>
+                            </div>
                             `;
 
                                 // اضافه کردن پیام به بالای فرم
@@ -1002,18 +1035,18 @@
                             }
                         })
                         .catch(error => {
-                            console.error('Error:', error);
+                            console.error('Fetch error:', error);
 
                             // نمایش پیام خطا
                             const alertHTML = `
-                            <div class="alert alert-danger custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.
-                                </div>
+                        <div class="alert alert-danger custom-alert mb-4">
+                            <div class="alert-icon">
+                                <i class="fas fa-exclamation-circle"></i>
                             </div>
+                            <div class="alert-content">
+                                خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.
+                            </div>
+                        </div>
                         `;
 
                             // اضافه کردن پیام به بالای فرم
@@ -1029,40 +1062,94 @@
 
             // مدیریت ارسال مجدد کد
             if (resendButton) {
-                resendButton.addEventListener('click', function() {
+                console.log('Setting up resend button click handler');
+
+                // تست تشخیص کلیک
+                resendButton.setAttribute('onclick', "console.log('Inline click handler called')");
+
+                resendButton.addEventListener('click', function(e) {
+                    e.preventDefault(); // جلوگیری از اقدامات پیش‌فرض
+
+                    console.log('Resend button clicked');
+
                     const type = this.getAttribute('data-type') || document.getElementById('identifier_type').value;
                     const identifier = this.getAttribute('data-identifier') || document.getElementById('identifier').value;
+
+                    console.log('Resend code data:', { type, identifier });
 
                     // غیرفعال کردن دکمه
                     this.disabled = true;
                     this.classList.add('disabled');
                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>در حال ارسال...</span>';
 
+                    // گرفتن CSRF توکن به صورت مستقیم
+                    const csrf = document.querySelector('meta[name="csrf-token"]');
+                    let csrfToken = '';
+
+                    if (csrf) {
+                        csrfToken = csrf.getAttribute('content');
+                        console.log('CSRF token found:', csrfToken ? 'Yes (length: ' + csrfToken.length + ')' : 'No');
+                    } else {
+                        console.error('CSRF token meta tag not found!');
+                        // نمایش پیام خطا
+                        const alertHTML = `
+                        <div class="alert alert-danger custom-alert mb-4">
+                            <div class="alert-icon">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="alert-content">
+                                خطا: تگ CSRF پیدا نشد. لطفاً صفحه را بازنشانی کنید.
+                            </div>
+                        </div>
+                        `;
+                        // اضافه کردن پیام به بالای فرم
+                        const form = document.querySelector('.code-form');
+                        form.insertAdjacentHTML('beforebegin', alertHTML);
+
+                        // بازگرداندن دکمه به حالت اولیه
+                        this.disabled = false;
+                        this.classList.remove('disabled');
+                        this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                        return;
+                    }
+
                     // ارسال درخواست به سرور
-                    fetch('/auth/send-verification-code', {
+                    const url = '/auth/send-verification-code';
+                    console.log('Sending request to:', url);
+
+                    fetch(url, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
                         },
                         body: JSON.stringify({
                             identifier_type: type,
                             identifier: identifier
                         })
                     })
-                        .then(response => response.json())
+                        .then(response => {
+                            console.log('Response received:', response.status, response.statusText);
+                            if (!response.ok) {
+                                throw new Error('Server returned ' + response.status + ': ' + response.statusText);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
+                            console.log('Response data:', data);
+
                             if (data.success) {
                                 // نمایش پیام موفقیت
                                 const alertHTML = `
-                                <div class="alert alert-success custom-alert mb-4">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-check-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        ${data.message}
-                                    </div>
+                            <div class="alert alert-success custom-alert mb-4">
+                                <div class="alert-icon">
+                                    <i class="fas fa-check-circle"></i>
                                 </div>
+                                <div class="alert-content">
+                                    ${data.message}
+                                </div>
+                            </div>
                             `;
 
                                 // حذف پیام‌های قبلی
@@ -1077,14 +1164,14 @@
                                 // در محیط توسعه، کد را نمایش دهید
                                 if (data.dev_code) {
                                     const devCodeHTML = `
-                                    <div class="alert alert-info custom-alert mb-4">
-                                        <div class="alert-icon">
-                                            <i class="fas fa-info-circle"></i>
-                                        </div>
-                                        <div class="alert-content">
-                                            <strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}
-                                        </div>
+                                <div class="alert alert-info custom-alert mb-4">
+                                    <div class="alert-icon">
+                                        <i class="fas fa-info-circle"></i>
                                     </div>
+                                    <div class="alert-content">
+                                        <strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}
+                                    </div>
+                                </div>
                                 `;
                                     form.insertAdjacentHTML('beforebegin', devCodeHTML);
                                 }
@@ -1129,14 +1216,14 @@
                             } else {
                                 // نمایش پیام خطا
                                 const alertHTML = `
-                                <div class="alert alert-danger custom-alert mb-4">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-exclamation-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        ${data.message}
-                                    </div>
+                            <div class="alert alert-danger custom-alert mb-4">
+                                <div class="alert-icon">
+                                    <i class="fas fa-exclamation-circle"></i>
                                 </div>
+                                <div class="alert-content">
+                                    ${data.message}
+                                </div>
+                            </div>
                             `;
 
                                 // حذف پیام‌های قبلی
@@ -1148,10 +1235,26 @@
                                 const form = document.querySelector('.code-form');
                                 form.insertAdjacentHTML('beforebegin', alertHTML);
 
-                                // بازگرداندن دکمه به حالت اولیه
-                                this.disabled = false;
-                                this.classList.remove('disabled');
-                                this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                                // اگر محدودیت زمانی وجود دارد
+                                if (data.wait_seconds) {
+                                    let waitTimer = data.wait_seconds;
+                                    const waitInterval = setInterval(() => {
+                                        waitTimer--;
+                                        this.innerHTML = `<i class="fas fa-clock"></i> <span>${waitTimer} ثانیه تا ارسال مجدد</span>`;
+
+                                        if (waitTimer <= 0) {
+                                            clearInterval(waitInterval);
+                                            this.disabled = false;
+                                            this.classList.remove('disabled');
+                                            this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                                        }
+                                    }, 1000);
+                                } else {
+                                    // بازگرداندن دکمه به حالت اولیه
+                                    this.disabled = false;
+                                    this.classList.remove('disabled');
+                                    this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                                }
                             }
                         })
                         .catch(error => {
@@ -1159,14 +1262,14 @@
 
                             // نمایش پیام خطا
                             const alertHTML = `
-                            <div class="alert alert-danger custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.
-                                </div>
+                        <div class="alert alert-danger custom-alert mb-4">
+                            <div class="alert-icon">
+                                <i class="fas fa-exclamation-circle"></i>
                             </div>
+                            <div class="alert-content">
+                                خطا در ارسال کد تأیید: ${error.message}
+                            </div>
+                        </div>
                         `;
 
                             // حذف پیام‌های قبلی
@@ -1184,6 +1287,17 @@
                             this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
                         });
                 });
+
+                // اضافه کردن گوش‌دهنده به صورت مستقیم به دام برای مطمئن شدن از فراخوانی
+                const btnEl = document.getElementById('resend-code-btn');
+                if (btnEl) {
+                    console.log('Adding direct click handler');
+                    btnEl.onclick = function() {
+                        console.log('Direct click handler called');
+                    };
+                }
+            } else {
+                console.error('Resend button not found!');
             }
 
             // اعتبارسنجی فرم‌ها قبل از ارسال
@@ -1285,6 +1399,22 @@
                     codeInputs[0].focus();
                 }
             }
+
+            // بررسی نهایی - تزریق یک دکمه تست برای مطمئن شدن از عملکرد JavaScript
+            console.log('Injecting test button');
+            const testBtn = document.createElement('button');
+            testBtn.type = 'button';
+            testBtn.className = 'btn btn-sm btn-warning mt-2 d-none'; // d-none برای مخفی کردن در محیط تولید
+            testBtn.textContent = 'دکمه تست';
+            testBtn.onclick = function() {
+                alert('JavaScript کار می‌کند!');
+            };
+
+            if (resendContainer) {
+                resendContainer.appendChild(testBtn);
+            }
+
+            console.log('Script initialization complete');
         });
     </script>
 @endpush

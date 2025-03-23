@@ -40,7 +40,7 @@ class VerificationCode extends Model
      * @param int $expiresInMinutes مدت زمان اعتبار کد به دقیقه (پیش‌فرض: 15)
      * @return self
      */
-    public static function generateFor(string $identifier, string $type, int $codeLength = 6, int $expiresInMinutes = 15): self
+    public static function generateFor(string $identifier, string $type, int $codeLength = 6, int $expiresInMinutes = 5): self
     {
         // ثبت لاگ ابتدایی
         Log::debug('Generating verification code', [
@@ -169,10 +169,10 @@ class VerificationCode extends Model
      * @param string $identifier ایمیل یا شماره موبایل
      * @param string $type نوع شناسه (email یا phone)
      * @param int $limitInSeconds محدودیت زمانی بین درخواست‌ها به ثانیه (پیش‌فرض: 60)
-     * @param int $maxPerDay حداکثر تعداد درخواست در روز (پیش‌فرض: 5)
+     * @param int $maxPerDay حداکثر تعداد درخواست در روز (پیش‌فرض: 10)
      * @return true|int true اگر ارسال مجاز باشد، وگرنه ثانیه‌های باقی‌مانده
      */
-    public static function canSendNew(string $identifier, string $type, int $limitInSeconds = 60, int $maxPerDay = 5)
+    public static function canSendNew(string $identifier, string $type, int $limitInSeconds = 300, int $maxPerDay = 10)
     {
         // بررسی زمان آخرین کد ارسال شده
         $lastCode = self::where('identifier', $identifier)

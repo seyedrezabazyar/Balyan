@@ -1,24 +1,26 @@
 <?php
 
-use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\IdentifierController;
+use App\Http\Controllers\Auth\VerificationController;
+use App\Http\Controllers\Auth\RegistrationController;
 use Illuminate\Support\Facades\Route;
 
-// Routes that are accessible only to guests (users who are not logged in)
-Route::middleware('guest')->group(function () {
-    // Login: Step 1 - Show login form
-    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-    // Login: Step 1 - Handle identifier (phone/email) submission
-    Route::post('/login/identify', [AuthController::class, 'identify'])->name('auth.identify');
+// Authentication routes accessible only to guests
+Route::prefix('auth')->middleware('guest')->group(function () {
+    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/identify', [IdentifierController::class, 'identify'])->name('auth.identify');
+    Route::get('/verify', [VerificationController::class, 'showVerificationForm'])->name('auth.verify-form');
+    Route::post('/resend-code', [VerificationController::class, 'resendVerificationCode'])->name('auth.resend-code');
+    Route::post('/verify-code', [VerificationController::class, 'verifyCode'])->name('auth.verify-code');
+    Route::post('/login-password', [LoginController::class, 'loginWithPassword'])->name('auth.login-password');
 
-    // Login: Step 2 - Show verification form (password or code)
-    Route::get('/auth/verify', [AuthController::class, 'showVerificationForm'])->name('auth.verify-form');
-    // Login: Step 2 - Handle verification code/password submission
-    Route::post('/auth/verify', [AuthController::class, 'verify'])->name('auth.verify');
-
-    // API routes for AJAX-based authentication (optional, if you're using AJAX)
-    Route::post('/login/phone', [AuthController::class, 'loginApi'])->name('login.phone'); // You might not need this
-    Route::post('/login/verify', [AuthController::class, 'verifyApi'])->name('login.verify'); // You might not need this
+    // اضافه کردن مسیر جدید برای ارسال کد تأیید
+    Route::post('/send-verification-code', [VerificationController::class, 'sendVerificationCode'])->name('auth.send-verification-code');
 });
+
+// Logout route (accessible only to authenticated users)
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
 // General routes (accessible to everyone)
 
