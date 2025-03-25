@@ -28,7 +28,9 @@ class User extends Authenticatable
         'profile_image',
         'is_active',
         'last_login_at',
-        'access_token_hash'
+        'access_token_hash',
+        'email_verified_at',
+        'phone_verified_at'
     ];
 
     /**
@@ -39,7 +41,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'access_token_hash', //  این رو هم مخفی کنید
+        'access_token_hash',
     ];
 
     /**
@@ -49,30 +51,30 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'phone_verified_at' => 'datetime', // اضافه شد
+        'phone_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
         'is_active' => 'boolean',
-        'password' => 'hashed', // اگر از لاراول 10 به بالا استفاده می‌کنید، نیازی به این نیست
+        'password' => 'hashed',
     ];
 
     /**
      * Route notifications for the mail channel.
      *
-     * @return  array<string, string>|string
+     * @return array<string, string>|string
      */
     public function routeNotificationForMail(): array|string
     {
-        // اگر کاربر هم ایمیل و هم نام داشته باشه، از این فرمت استفاده می‌کنیم:
         if ($this->email && $this->first_name) {
             return [$this->email => $this->first_name];
         }
-        // در غیر این صورت، فقط ایمیل رو برمی‌گردونیم
         return $this->email;
-    }    /**
- * Route notifications for the Vonage channel.
- *
- * @return string
- */
+    }
+
+    /**
+     * Route notifications for the Vonage channel.
+     *
+     * @return string
+     */
     public function routeNotificationForVonage(): string
     {
         return $this->phone;

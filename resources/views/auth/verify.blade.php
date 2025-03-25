@@ -2,18 +2,20 @@
 
 @section('title', 'تأیید هویت')
 
+@push('head')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://www.google.com/recaptcha/api.js?render={{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}"></script>
+@endpush
+
 @section('content')
     <div class="verify-page">
-        <div class="verify-background">
-            <div class="verify-shapes"></div>
-        </div>
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-md-8 col-lg-6">
                     <div class="verify-container">
                         <div class="verify-header">
                             <div class="verify-logo">
-                                <img src="{{ asset('images/logo.png') }}" alt="کتاب‌یار" class="img-fluid">
+                                <img src="{{ asset('images/logo.png') }}" alt="بَلیان" class="img-fluid">
                             </div>
                             <h1 class="verify-title">تأیید هویت</h1>
 
@@ -50,7 +52,6 @@
                                 </div>
                             @endif
 
-                            <!-- نمایش کد در محیط توسعه -->
                             @if(isset($dev_code) && $dev_code)
                                 <div class="alert alert-info custom-alert">
                                     <div class="alert-icon">
@@ -75,7 +76,6 @@
 
                         <div class="verify-methods">
                             @if($userExists && $hasPassword)
-                                <!-- کاربر موجود با رمز عبور -->
                                 <div class="verify-method-tabs">
                                     <div class="nav nav-pills" id="verify-method-tab" role="tablist">
                                         <button class="nav-link active" id="password-tab" data-bs-toggle="tab" data-bs-target="#password-content" type="button" role="tab" aria-controls="password-content" aria-selected="true">
@@ -90,11 +90,11 @@
                                 </div>
 
                                 <div class="tab-content" id="verify-method-content">
-                                    <!-- تب رمز عبور -->
                                     <div class="tab-pane fade show active" id="password-content" role="tabpanel" aria-labelledby="password-tab">
                                         <form method="POST" action="{{ route('auth.login-password') }}" class="password-form">
                                             @csrf
                                             <input type="hidden" name="verify_method" value="password">
+                                            <input type="hidden" name="g-recaptcha-response" id="recaptchaResponsePassword">
 
                                             <div class="form-group mb-4">
                                                 <label for="password" class="form-label">رمز عبور</label>
@@ -131,9 +131,7 @@
                                         </form>
                                     </div>
 
-                                    <!-- تب کد تأیید -->
                                     <div class="tab-pane fade" id="code-content" role="tabpanel" aria-labelledby="code-tab">
-                                        <!-- انتخاب روش ارسال کد -->
                                         @if(!empty($contactInfo) && ($contactInfo['has_phone'] && $contactInfo['has_email']))
                                             <div class="send-code-options mb-4">
                                                 <p class="text-center mb-3">کد تأیید را به کدام روش دریافت می‌کنید؟</p>
@@ -167,6 +165,7 @@
                                             @csrf
                                             <input type="hidden" name="verify_method" value="code">
                                             <input type="hidden" name="verification_code" id="verification_code">
+                                            <input type="hidden" name="g-recaptcha-response" id="recaptchaResponseCode">
 
                                             <div class="verification-code-container mb-4">
                                                 <label class="form-label">کد تأیید ارسال شده را وارد کنید</label>
@@ -199,6 +198,10 @@
                                                 @error('verification_code')
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                                 @enderror
+
+                                                @error('g-recaptcha-response')
+                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                                @enderror
                                             </div>
 
                                             <div class="form-check mb-4">
@@ -217,7 +220,6 @@
                                     </div>
                                 </div>
                             @else
-                                <!-- کاربر جدید یا بدون رمز عبور - فقط کد تأیید -->
                                 <form method="POST" action="{{ route('auth.verify-code') }}" class="code-form">
                                     @csrf
                                     <input type="hidden" name="verify_method" value="code">
@@ -226,6 +228,8 @@
                                     <input type="hidden" id="identifier_type" value="{{ $identifierType }}">
                                     <input type="hidden" id="expires-at" value="{{ $expiresAt ?? '' }}">
                                     <input type="hidden" id="code-expired" value="{{ $codeExpired ? 'true' : 'false' }}">
+                                    <input type="hidden" id="session_token" value="{{ $session_token ?? '' }}">
+                                    <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
 
                                     <div class="verification-code-container mb-4">
                                         <label class="form-label">کد تأیید ارسال شده را وارد کنید</label>
@@ -262,6 +266,10 @@
                                         @error('verification_code')
                                         <div class="invalid-feedback d-block">{{ $message }}</div>
                                         @enderror
+
+                                        @error('g-recaptcha-response')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                        @enderror
                                     </div>
 
                                     <div class="form-check mb-4">
@@ -281,7 +289,7 @@
                         </div>
 
                         <div class="verify-footer">
-                            <p class="privacy-text">ورود شما به معنای پذیرش <a href="{{ route('terms') }}">قوانین و مقررات</a> کتاب‌یار است</p>
+                            <p class="privacy-text">ورود شما به معنای پذیرش <a href="{{ route('terms') }}">قوانین و مقررات</a> بَلیان است</p>
                         </div>
                     </div>
                 </div>
@@ -289,6 +297,791 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!document.querySelector('meta[name="csrf-token"]')) {
+                const meta = document.createElement('meta');
+                meta.name = 'csrf-token';
+                meta.content = '{{ csrf_token() }}';
+                document.head.appendChild(meta);
+            }
+
+            const codeInputs = document.querySelectorAll('.code-input');
+            const hiddenInput = document.getElementById('verification_code');
+            const expiresAtElement = document.getElementById('expires-at');
+            const codeExpiredElement = document.getElementById('code-expired');
+            const countdownElement = document.getElementById('countdown-timer');
+            const resendContainer = document.getElementById('resend-container');
+            const resendButton = document.getElementById('resend-code-btn');
+            const statusMessage = document.getElementById('status-message');
+            const sessionToken = document.getElementById('session_token')?.value;
+
+            const recaptchaResponsePassword = document.getElementById('recaptchaResponsePassword');
+            const recaptchaResponseCode = document.getElementById('recaptchaResponseCode');
+            const recaptchaResponse = document.getElementById('recaptchaResponse');
+
+            function convertPersianToEnglish(str) {
+                if (!str) return str;
+
+                const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+                const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+                const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+                let result = str.toString();
+
+                for (let i = 0; i < 10; i++) {
+                    const persianRegex = new RegExp(persianNumbers[i], 'g');
+                    const arabicRegex = new RegExp(arabicNumbers[i], 'g');
+                    result = result.replace(persianRegex, englishNumbers[i])
+                        .replace(arabicRegex, englishNumbers[i]);
+                }
+
+                return result;
+            }
+
+            function formatMaskedPhone() {
+                const subtitleElement = document.querySelector('.verify-subtitle');
+                if (!subtitleElement) return;
+
+                const text = subtitleElement.textContent || '';
+                if (!text.includes('شماره')) return;
+
+                const phonePattern = /(\*+\d+|\d+\*+|\d+\*+\d+)/g;
+                const matches = text.match(phonePattern);
+
+                if (!matches || matches.length === 0) return;
+
+                const maskedPhone = matches[0];
+
+                if (maskedPhone.startsWith('*')) {
+                    const digits = maskedPhone.match(/\d+/)[0];
+                    const formattedPhone = `09${digits.substring(0, 2)}*****${digits.substring(2)}`;
+                    subtitleElement.textContent = text.replace(maskedPhone, formattedPhone);
+                }
+                else if (maskedPhone.match(/^\d+\*+$/)) {
+                    const prefix = maskedPhone.match(/^\d+/)[0];
+                    const formattedPhone = `${prefix.substring(0, 4)}*****`;
+                    subtitleElement.textContent = text.replace(maskedPhone, formattedPhone);
+                }
+                else if (maskedPhone.match(/^\d+\*+\d+$/)) {
+                    const parts = maskedPhone.split(/\*+/);
+                    if (parts.length === 2) {
+                        const prefix = parts[0];
+                        const suffix = parts[1];
+
+                        if (prefix.length > 4 || (prefix.length < 2 && suffix.length >= 4)) {
+                            const correctedPhone = `09${suffix}*****${prefix.substring(prefix.length - 4)}`;
+                            subtitleElement.textContent = text.replace(maskedPhone, correctedPhone);
+                        }
+                    }
+                }
+            }
+
+            function checkForErrors() {
+                clearAlerts();
+
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('error')) {
+                    const errorType = urlParams.get('error');
+
+                    if (errorType === 'invalid_code' || errorType === 'verification_failed') {
+                        showAlert('کد تأیید وارد شده صحیح نیست یا منقضی شده است.', 'danger');
+                        return;
+                    }
+                    else if (errorType === 'account_creation_failed') {
+                        showAlert('خطا در ایجاد حساب کاربری. لطفاً دوباره تلاش کنید.', 'danger');
+                        return;
+                    }
+                }
+
+                const errorElements = document.querySelectorAll('.alert.alert-danger:not(.custom-alert), .invalid-feedback:not(.d-none)');
+
+                if (errorElements.length > 0) {
+                    let foundInvalidCode = false;
+                    let foundAccountError = false;
+
+                    errorElements.forEach(element => {
+                        const errorText = element.textContent || '';
+                        element.style.display = 'none';
+
+                        if (!foundInvalidCode && (
+                            errorText.includes('کد تأیید') ||
+                            errorText.includes('کد وارد شده') ||
+                            errorText.includes('کد اشتباه') ||
+                            errorText.includes('verification_code')
+                        )) {
+                            showAlert('کد تأیید وارد شده صحیح نیست یا منقضی شده است.', 'danger');
+                            foundInvalidCode = true;
+                        }
+                        else if (!foundAccountError && (
+                            errorText.includes('ایجاد حساب') ||
+                            errorText.includes('account creation')
+                        )) {
+                            showAlert('خطا در ایجاد حساب کاربری. لطفاً دوباره تلاش کنید.', 'danger');
+                            foundAccountError = true;
+                        }
+                    });
+                }
+            }
+
+            function getRecaptchaToken(action, callback) {
+                if (typeof grecaptcha !== 'undefined' && grecaptcha) {
+                    try {
+                        grecaptcha.ready(function() {
+                            grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: action})
+                                .then(function(token) {
+                                    if (recaptchaResponsePassword) {
+                                        recaptchaResponsePassword.value = token;
+                                    }
+                                    if (recaptchaResponseCode) {
+                                        recaptchaResponseCode.value = token;
+                                    }
+                                    if (recaptchaResponse) {
+                                        recaptchaResponse.value = token;
+                                    }
+
+                                    if (typeof callback === 'function') {
+                                        callback(token);
+                                    }
+                                })
+                                .catch(function(error) {
+                                    if (typeof callback === 'function') {
+                                        callback(null);
+                                    }
+                                });
+                        });
+                    } catch (error) {
+                        if (typeof callback === 'function') {
+                            callback(null);
+                        }
+                    }
+                } else {
+                    if (typeof callback === 'function') {
+                        callback(null);
+                    }
+                }
+            }
+
+            getRecaptchaToken('verify_page_load');
+
+            function clearAlerts() {
+                document.querySelectorAll('.custom-alert').forEach(alert => {
+                    alert.remove();
+                });
+            }
+
+            function showAlert(message, type = 'danger') {
+                if (!message) return;
+
+                const iconClass = {
+                    'success': 'fa-check-circle',
+                    'danger': 'fa-exclamation-circle',
+                    'warning': 'fa-exclamation-triangle',
+                    'info': 'fa-info-circle'
+                };
+
+                const alertHTML = `
+                    <div class="alert alert-${type} custom-alert mb-4" role="alert">
+                        <div class="alert-icon">
+                            <i class="fas ${iconClass[type]}"></i>
+                        </div>
+                        <div class="alert-content">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+
+                const form = document.querySelector('.code-form');
+                if (form) {
+                    const existingAlerts = form.parentElement.querySelectorAll('.custom-alert');
+                    for (let i = 0; i < existingAlerts.length; i++) {
+                        const alertContent = existingAlerts[i].querySelector('.alert-content');
+                        if (alertContent && alertContent.textContent.trim() === message.trim()) {
+                            return;
+                        }
+                    }
+
+                    form.insertAdjacentHTML('beforebegin', alertHTML);
+                } else {
+                    const container = document.querySelector('.auth-container, .container, main');
+                    if (container) {
+                        container.insertAdjacentHTML('afterbegin', alertHTML);
+                    }
+                }
+            }
+
+            function resetButton(button, originalText) {
+                button.disabled = false;
+                button.classList.remove('disabled');
+                button.innerHTML = originalText;
+            }
+
+            function startWaitTimer(button, seconds) {
+                button.disabled = true;
+                button.classList.add('disabled');
+
+                let remainingTime = seconds;
+                button.innerHTML = `<i class="fas fa-clock"></i> <span>${remainingTime} ثانیه تا ارسال مجدد</span>`;
+
+                const waitInterval = setInterval(() => {
+                    remainingTime--;
+                    button.innerHTML = `<i class="fas fa-clock"></i> <span>${remainingTime} ثانیه تا ارسال مجدد</span>`;
+
+                    if (remainingTime <= 0) {
+                        clearInterval(waitInterval);
+                        button.disabled = false;
+                        button.classList.remove('disabled');
+                        button.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                    }
+                }, 1000);
+
+                return waitInterval;
+            }
+
+            function formatWaitTime(seconds) {
+                if (seconds < 60) {
+                    return `${seconds} ثانیه`;
+                } else {
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = seconds % 60;
+                    return `${minutes} دقیقه و ${remainingSeconds} ثانیه`;
+                }
+            }
+
+            function handleApiRequest(url, data, button, successCallback, originalButtonText) {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                if (!csrfToken) {
+                    showAlert('خطا: تگ CSRF پیدا نشد. لطفاً صفحه را بازنشانی کنید.', 'danger');
+                    resetButton(button, originalButtonText);
+
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+
+                    return;
+                }
+
+                getRecaptchaToken('verify_api_request', function(recaptchaToken) {
+                    if (recaptchaToken) {
+                        data['g-recaptcha-response'] = recaptchaToken;
+                    }
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                        .then(response => {
+                            const responseStatus = response.status;
+
+                            return response.json().then(data => {
+                                data.status = responseStatus;
+                                return data;
+                            }).catch(() => {
+                                return {
+                                    status: responseStatus,
+                                    success: false,
+                                    message: `خطای سرور: ${responseStatus}`
+                                };
+                            });
+                        })
+                        .then(data => {
+                            if (data.status === 429) {
+                                const waitTime = data.wait_seconds || data.waitTime || data.retry_after || 60;
+                                const waitTimeFormatted = formatWaitTime(waitTime);
+                                showAlert(`محدودیت ارسال: تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً ${waitTimeFormatted} صبر کنید.`, 'warning');
+
+                                startWaitTimer(button, waitTime);
+                                return;
+                            }
+                            else if (data.status === 419) {
+                                showAlert('خطای CSRF: توکن نامعتبر است. لطفاً صفحه را بازنشانی کنید.', 'danger');
+
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 3000);
+                                return;
+                            }
+                            else if (data.status >= 400) {
+                                showAlert(data.message || `خطا در ارتباط با سرور: ${data.status}`, 'danger');
+                                resetButton(button, originalButtonText);
+                                return;
+                            }
+
+                            if (data.success) {
+                                successCallback(data);
+                            } else {
+                                showAlert(data.message || 'عملیات با خطا مواجه شد.', 'danger');
+                                resetButton(button, originalButtonText);
+                            }
+                        })
+                        .catch(error => {
+                            showAlert(error.message || 'خطا در ارتباط با سرور', 'danger');
+                            resetButton(button, originalButtonText);
+
+                            if (error.message && error.message.includes('CSRF')) {
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 3000);
+                            }
+                        });
+                });
+            }
+
+            class VerificationTimer {
+                constructor(expiresAt) {
+                    this.expiresAt = expiresAt;
+                    this.interval = null;
+
+                    if (!this.expiresAt || this.expiresAt <= new Date().getTime()) {
+                        this.showExpiredMessage();
+                        this.enableResendButton();
+                        return;
+                    }
+
+                    this.updateCountdown();
+                    this.startTimer();
+                }
+
+                startTimer() {
+                    if (this.interval) {
+                        clearInterval(this.interval);
+                    }
+
+                    this.interval = setInterval(() => {
+                        this.updateCountdown();
+                    }, 1000);
+                }
+
+                updateCountdown() {
+                    const now = new Date().getTime();
+                    const timeLeft = this.expiresAt - now;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(this.interval);
+                        this.showExpiredMessage();
+                        this.enableResendButton();
+                        return;
+                    }
+
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                    if (countdownElement) {
+                        countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} مانده تا انقضای کد`;
+                    }
+                    this.disableResendButton();
+                }
+
+                showExpiredMessage() {
+                    if (countdownElement) {
+                        countdownElement.textContent = '00:00 مانده تا انقضای کد';
+                    }
+                    if (statusMessage) {
+                        statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
+                        statusMessage.className = 'mt-2 text-sm text-danger';
+                    }
+
+                    if (codeExpiredElement) {
+                        codeExpiredElement.value = 'true';
+                    }
+                }
+
+                enableResendButton() {
+                    if (resendContainer) {
+                        resendContainer.classList.remove('d-none');
+                    }
+                    if (resendButton) {
+                        resendButton.disabled = false;
+                        resendButton.classList.remove('disabled');
+                        resendButton.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                    }
+                }
+
+                disableResendButton() {
+                    if (resendContainer) {
+                        resendContainer.classList.add('d-none');
+                    }
+                    if (resendButton) {
+                        resendButton.disabled = true;
+                        resendButton.classList.add('disabled');
+                    }
+                }
+
+                resetTimer(newExpiresAt) {
+                    clearInterval(this.interval);
+                    this.expiresAt = newExpiresAt;
+
+                    if (statusMessage) {
+                        statusMessage.textContent = '';
+                        statusMessage.className = 'mt-2 text-sm';
+                    }
+
+                    if (codeExpiredElement) {
+                        codeExpiredElement.value = 'false';
+                    }
+
+                    this.updateCountdown();
+                    this.startTimer();
+                }
+            }
+
+            function updateVerificationCode() {
+                let code = '';
+                codeInputs.forEach(input => {
+                    code += input.value;
+                });
+
+                if (hiddenInput) {
+                    hiddenInput.value = code;
+                }
+            }
+
+            if (codeInputs.length) {
+                codeInputs.forEach((input, index) => {
+                    input.addEventListener('click', function() {
+                        this.select();
+                    });
+
+                    input.addEventListener('input', function(e) {
+                        let value = convertPersianToEnglish(this.value);
+
+                        if (value !== this.value) {
+                            this.value = value;
+                        }
+
+                        if (!/^\d*$/.test(value)) {
+                            this.value = '';
+                            return;
+                        }
+
+                        if (value.length === 1 && index < codeInputs.length - 1) {
+                            codeInputs[index + 1].focus();
+                            codeInputs[index + 1].select();
+                        }
+
+                        updateVerificationCode();
+                    });
+
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'ArrowRight' && index > 0) {
+                            codeInputs[index - 1].focus();
+                            codeInputs[index - 1].select();
+                        } else if (e.key === 'ArrowLeft' && index < codeInputs.length - 1) {
+                            codeInputs[index + 1].focus();
+                            codeInputs[index + 1].select();
+                        } else if (e.key === 'Backspace' && !this.value.length && index > 0) {
+                            codeInputs[index - 1].focus();
+                            codeInputs[index - 1].select();
+                        }
+                    });
+
+                    input.addEventListener('paste', function(e) {
+                        e.preventDefault();
+
+                        let pasteData = e.clipboardData.getData('text');
+                        pasteData = convertPersianToEnglish(pasteData);
+                        pasteData = pasteData.replace(/\D/g, '');
+
+                        for (let i = 0; i < Math.min(pasteData.length, codeInputs.length); i++) {
+                            codeInputs[i].value = pasteData[i];
+                        }
+
+                        const nextIndex = Math.min(index + pasteData.length, codeInputs.length - 1);
+                        codeInputs[nextIndex].focus();
+
+                        updateVerificationCode();
+                    });
+                });
+            }
+
+            const passwordToggles = document.querySelectorAll('.password-toggle');
+            passwordToggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const passwordInput = this.parentElement.querySelector('input');
+                    const icon = this.querySelector('i');
+
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        passwordInput.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            });
+
+            const sendCodeButtons = document.querySelectorAll('.btn-send-code');
+            sendCodeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const type = this.getAttribute('data-type');
+                    const identifier = this.getAttribute('data-identifier');
+                    const originalText = this.innerHTML;
+
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>در حال ارسال...</span>';
+
+                    handleApiRequest('/auth/send-verification-code', {
+                        identifier_type: type,
+                        identifier: identifier,
+                        session_token: sessionToken
+                    }, this, function(data) {
+                        showAlert(data.message, 'success');
+
+                        if (data.dev_code) {
+                            showAlert(`<strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}`, 'info');
+                        }
+
+                        if (expiresAtElement) {
+                            expiresAtElement.value = data.expires_at;
+                        }
+
+                        if (codeExpiredElement) {
+                            codeExpiredElement.value = 'false';
+                        }
+
+                        if (window.verificationTimer) {
+                            window.verificationTimer.resetTimer(data.expires_at);
+                        } else {
+                            window.verificationTimer = new VerificationTimer(data.expires_at);
+                        }
+
+                        if (resendContainer) {
+                            resendContainer.classList.add('d-none');
+                        }
+
+                        resetButton(button, originalText);
+
+                        if (codeInputs.length) {
+                            codeInputs[0].focus();
+                        }
+
+                        codeInputs.forEach(input => {
+                            input.value = '';
+                        });
+                        updateVerificationCode();
+                    }, originalText);
+                });
+            });
+
+            if (resendButton) {
+                resendButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    const type = this.getAttribute('data-type') || document.getElementById('identifier_type').value;
+                    const identifier = this.getAttribute('data-identifier') || document.getElementById('identifier').value;
+                    const originalText = this.innerHTML;
+
+                    this.disabled = true;
+                    this.classList.add('disabled');
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>در حال ارسال...</span>';
+
+                    handleApiRequest('/auth/resend-code', {
+                        identifier_type: type,
+                        identifier: identifier,
+                        session_token: sessionToken
+                    }, this, function(data) {
+                        showAlert(data.message, 'success');
+
+                        if (data.dev_code) {
+                            showAlert(`<strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}`, 'info');
+                        }
+
+                        if (expiresAtElement) {
+                            expiresAtElement.value = data.expiresAt || data.expires_at;
+                        }
+
+                        if (codeExpiredElement) {
+                            codeExpiredElement.value = 'false';
+                        }
+
+                        if (statusMessage) {
+                            statusMessage.textContent = '';
+                            statusMessage.className = 'mt-2 text-sm';
+                        }
+
+                        if (window.verificationTimer) {
+                            window.verificationTimer.resetTimer(data.expiresAt || data.expires_at);
+                        } else {
+                            window.verificationTimer = new VerificationTimer(data.expiresAt || data.expires_at);
+                        }
+
+                        if (resendContainer) {
+                            resendContainer.classList.add('d-none');
+                        }
+
+                        if (codeInputs.length) {
+                            codeInputs[0].focus();
+                        }
+
+                        codeInputs.forEach(input => {
+                            input.value = '';
+                        });
+                        updateVerificationCode();
+                    }, originalText);
+                });
+            }
+
+            const passwordForm = document.querySelector('.password-form');
+            if (passwordForm) {
+                passwordForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const passwordInput = document.getElementById('password');
+                    if (!passwordInput.value.trim()) {
+                        passwordInput.classList.add('is-invalid');
+
+                        let feedback = passwordInput.parentElement.nextElementSibling;
+                        if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                            feedback = document.createElement('div');
+                            feedback.className = 'invalid-feedback d-block';
+                            passwordInput.parentElement.after(feedback);
+                        }
+
+                        feedback.textContent = 'لطفاً رمز عبور خود را وارد کنید.';
+                        return;
+                    }
+
+                    getRecaptchaToken('password_login', function(token) {
+                        passwordForm.submit();
+                    });
+                });
+            }
+
+            const codeForm = document.querySelector('.code-form');
+            if (codeForm) {
+                codeForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const verificationCode = document.getElementById('verification_code');
+
+                    if (!verificationCode.value) {
+                        showAlert('لطفاً کد تأیید را وارد کنید.', 'danger');
+
+                        let firstEmptyInput = null;
+                        for (let i = 0; i < codeInputs.length; i++) {
+                            if (!codeInputs[i].value) {
+                                firstEmptyInput = codeInputs[i];
+                                break;
+                            }
+                        }
+
+                        if (firstEmptyInput) {
+                            firstEmptyInput.focus();
+                        } else {
+                            codeInputs[0].focus();
+                        }
+                        return;
+                    }
+
+                    if (verificationCode.value.length !== 6) {
+                        showAlert('کد تأیید باید 6 رقم باشد.', 'danger');
+                        codeInputs[0].focus();
+                        return;
+                    }
+
+                    if (codeExpiredElement && codeExpiredElement.value === 'true') {
+                        showAlert('کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.', 'danger');
+                        return;
+                    }
+
+                    clearAlerts();
+
+                    getRecaptchaToken('code_verification', function(token) {
+                        codeForm.submit();
+                    });
+                });
+            }
+
+            function checkExpirationStatus() {
+                if (expiresAtElement && expiresAtElement.value) {
+                    const expiresAt = parseInt(expiresAtElement.value);
+                    const now = new Date().getTime();
+
+                    if (expiresAt <= now) {
+                        if (countdownElement) {
+                            countdownElement.textContent = '00:00 مانده تا انقضای کد';
+                        }
+                        if (statusMessage) {
+                            statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
+                            statusMessage.className = 'mt-2 text-sm text-danger';
+                        }
+
+                        if (resendContainer) {
+                            resendContainer.classList.remove('d-none');
+                        }
+                        if (resendButton) {
+                            resendButton.disabled = false;
+                            resendButton.classList.remove('disabled');
+                            resendButton.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                        }
+
+                        if (codeExpiredElement) {
+                            codeExpiredElement.value = 'true';
+                        }
+                    } else {
+                        window.verificationTimer = new VerificationTimer(expiresAt);
+                    }
+                }
+                else if (codeExpiredElement && codeExpiredElement.value === 'true') {
+                    if (countdownElement) {
+                        countdownElement.textContent = '00:00 مانده تا انقضای کد';
+                    }
+                    if (statusMessage) {
+                        statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
+                        statusMessage.className = 'mt-2 text-sm text-danger';
+                    }
+
+                    if (resendContainer) {
+                        resendContainer.classList.remove('d-none');
+                    }
+                    if (resendButton) {
+                        resendButton.disabled = false;
+                        resendButton.classList.remove('disabled');
+                        resendButton.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                    }
+                }
+                else {
+                    if (countdownElement) {
+                        countdownElement.textContent = 'کد تأییدی ارسال نشده است';
+                    }
+
+                    if (resendContainer && (!codeExpiredElement || codeExpiredElement.value !== 'false')) {
+                        resendContainer.classList.remove('d-none');
+
+                        if (resendButton) {
+                            resendButton.disabled = false;
+                            resendButton.classList.remove('disabled');
+                            resendButton.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
+                        }
+                    }
+                }
+            }
+
+            checkExpirationStatus();
+
+            if ((expiresAtElement && expiresAtElement.value) || (codeExpiredElement && codeExpiredElement.value === 'true')) {
+                if (codeInputs.length) {
+                    codeInputs[0].focus();
+                }
+            }
+
+            setInterval(function() {
+                getRecaptchaToken('refresh_token');
+            }, 120000);
+
+            formatMaskedPhone();
+            checkForErrors();
+        });
+    </script>
+@endpush
 
 @push('styles')
     <style>
@@ -711,710 +1504,4 @@
             color: var(--danger-color);
         }
     </style>
-@endpush
-
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Script initialized'); // برای اشکال‌زدایی
-
-            // مدیریت فیلدهای کد تأیید
-            const codeInputs = document.querySelectorAll('.code-input');
-            const hiddenInput = document.getElementById('verification_code');
-            const expiresAtElement = document.getElementById('expires-at');
-            const codeExpiredElement = document.getElementById('code-expired');
-            const countdownElement = document.getElementById('countdown-timer');
-            const resendContainer = document.getElementById('resend-container');
-            const resendButton = document.getElementById('resend-code-btn');
-            const statusMessage = document.getElementById('status-message');
-
-            // بررسی وجود المان‌های مورد نیاز
-            console.log('Required elements found:', {
-                codeInputs: codeInputs.length,
-                hiddenInput: !!hiddenInput,
-                expiresAtElement: !!expiresAtElement,
-                codeExpiredElement: !!codeExpiredElement,
-                countdownElement: !!countdownElement,
-                resendContainer: !!resendContainer,
-                resendButton: !!resendButton,
-                statusMessage: !!statusMessage
-            });
-
-            // بررسی تنظیمات CSRF
-            const metaCsrfToken = document.querySelector('meta[name="csrf-token"]');
-            if (!metaCsrfToken) {
-                console.error('CSRF token meta tag not found!');
-            } else {
-                console.log('CSRF token meta tag found');
-            }
-
-            let timerInterval;
-
-            /**
-             * تایمر کد تأیید
-             */
-            class VerificationTimer {
-                constructor(expiresAt) {
-                    this.expiresAt = expiresAt; // زمان انقضا به میلی‌ثانیه (timestamp)
-                    this.interval = null;
-
-                    // اگر زمان انقضا تعیین نشده یا منقضی شده، دکمه ارسال مجدد را فعال کنیم
-                    if (!this.expiresAt || this.expiresAt <= new Date().getTime()) {
-                        this.showExpiredMessage();
-                        this.enableResendButton();
-                        return;
-                    }
-
-                    this.updateCountdown();
-                    this.startTimer();
-                }
-
-                startTimer() {
-                    this.interval = setInterval(() => {
-                        this.updateCountdown();
-                    }, 1000);
-                }
-
-                updateCountdown() {
-                    const now = new Date().getTime();
-                    const timeLeft = this.expiresAt - now;
-
-                    if (timeLeft <= 0) {
-                        clearInterval(this.interval);
-                        this.showExpiredMessage();
-                        this.enableResendButton();
-                        return;
-                    }
-
-                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-                    countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} مانده تا انقضای کد`;
-                    this.disableResendButton();
-                }
-
-                showExpiredMessage() {
-                    countdownElement.textContent = '00:00 مانده تا انقضای کد';
-                    if (statusMessage) {
-                        statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
-                        statusMessage.className = 'mt-2 text-sm text-danger';
-                    }
-                }
-
-                enableResendButton() {
-                    if (resendContainer) {
-                        resendContainer.classList.remove('d-none');
-                    }
-                    if (resendButton) {
-                        resendButton.disabled = false;
-                        resendButton.classList.remove('disabled');
-                    }
-                }
-
-                disableResendButton() {
-                    if (resendContainer) {
-                        resendContainer.classList.add('d-none');
-                    }
-                    if (resendButton) {
-                        resendButton.disabled = true;
-                        resendButton.classList.add('disabled');
-                    }
-                }
-
-                resetTimer(newExpiresAt) {
-                    clearInterval(this.interval);
-                    this.expiresAt = newExpiresAt;
-                    this.updateCountdown();
-                    this.startTimer();
-
-                    // پاک کردن پیام خطا
-                    if (statusMessage) {
-                        statusMessage.textContent = '';
-                        statusMessage.className = 'mt-2 text-sm';
-                    }
-                }
-            }
-
-            // به‌روزرسانی فیلد مخفی با کد تأیید
-            function updateVerificationCode() {
-                let code = '';
-                codeInputs.forEach(input => {
-                    code += input.value;
-                });
-
-                if (hiddenInput) {
-                    hiddenInput.value = code;
-                }
-            }
-
-            // مدیریت فیلدهای کد تأیید
-            if (codeInputs.length) {
-                codeInputs.forEach((input, index) => {
-                    // هنگام کلیک، کل متن انتخاب شود
-                    input.addEventListener('click', function() {
-                        this.select();
-                    });
-
-                    // هنگام تایپ، به فیلد بعدی برود
-                    input.addEventListener('input', function(e) {
-                        const value = this.value;
-
-                        // فقط اعداد مجاز هستند
-                        if (!/^\d*$/.test(value)) {
-                            this.value = '';
-                            return;
-                        }
-
-                        // اگر عددی وارد شد، به فیلد بعدی برود
-                        if (value.length === 1 && index < codeInputs.length - 1) {
-                            codeInputs[index + 1].focus();
-                            codeInputs[index + 1].select();
-                        }
-
-                        // به‌روزرسانی کد تأیید
-                        updateVerificationCode();
-                    });
-
-                    // مدیریت کلیدهای جهت‌دار و حذف
-                    input.addEventListener('keydown', function(e) {
-                        if (e.key === 'ArrowRight' && index > 0) {
-                            codeInputs[index - 1].focus();
-                            codeInputs[index - 1].select();
-                        } else if (e.key === 'ArrowLeft' && index < codeInputs.length - 1) {
-                            codeInputs[index + 1].focus();
-                            codeInputs[index + 1].select();
-                        } else if (e.key === 'Backspace' && !this.value.length && index > 0) {
-                            codeInputs[index - 1].focus();
-                            codeInputs[index - 1].select();
-                        }
-                    });
-                });
-            }
-
-            // مدیریت نمایش/عدم نمایش رمز عبور
-            const passwordToggles = document.querySelectorAll('.password-toggle');
-            passwordToggles.forEach(toggle => {
-                toggle.addEventListener('click', function() {
-                    const passwordInput = this.parentElement.querySelector('input');
-                    const icon = this.querySelector('i');
-
-                    if (passwordInput.type === 'password') {
-                        passwordInput.type = 'text';
-                        icon.classList.remove('fa-eye');
-                        icon.classList.add('fa-eye-slash');
-                    } else {
-                        passwordInput.type = 'password';
-                        icon.classList.remove('fa-eye-slash');
-                        icon.classList.add('fa-eye');
-                    }
-                });
-            });
-
-            // مدیریت ارسال کد تأیید
-            const sendCodeButtons = document.querySelectorAll('.btn-send-code');
-            sendCodeButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const type = this.getAttribute('data-type');
-                    const identifier = this.getAttribute('data-identifier');
-                    const originalText = this.innerHTML;
-
-                    console.log('Send code button clicked', { type, identifier });
-
-                    // غیرفعال کردن دکمه
-                    this.disabled = true;
-                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>در حال ارسال...</span>';
-
-                    // گرفتن CSRF توکن
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-                    // ارسال درخواست به سرور
-                    fetch('/auth/send-verification-code', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            identifier_type: type,
-                            identifier: identifier
-                        })
-                    })
-                        .then(response => {
-                            console.log('Response status:', response.status);
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('Response data:', data);
-
-                            if (data.success) {
-                                // نمایش پیام موفقیت
-                                const alertHTML = `
-                            <div class="alert alert-success custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-check-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    ${data.message}
-                                </div>
-                            </div>
-                            `;
-
-                                // اضافه کردن پیام به بالای فرم
-                                const form = document.querySelector('.code-form');
-                                form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                                // در محیط توسعه، کد را نمایش دهید
-                                if (data.dev_code) {
-                                    const devCodeHTML = `
-                                <div class="alert alert-info custom-alert mb-4">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-info-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        <strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}
-                                    </div>
-                                </div>
-                                `;
-                                    form.insertAdjacentHTML('beforebegin', devCodeHTML);
-                                }
-
-                                // بروزرسانی زمان انقضا
-                                if (expiresAtElement) {
-                                    expiresAtElement.value = data.expires_at;
-                                }
-
-                                // شروع مجدد تایمر
-                                if (window.verificationTimer) {
-                                    window.verificationTimer.resetTimer(data.expires_at);
-                                } else {
-                                    window.verificationTimer = new VerificationTimer(data.expires_at);
-                                }
-
-                                // فوکوس روی اولین فیلد کد
-                                if (codeInputs.length) {
-                                    codeInputs[0].focus();
-                                }
-                            } else {
-                                // نمایش پیام خطا
-                                const alertHTML = `
-                            <div class="alert alert-danger custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    ${data.message}
-                                </div>
-                            </div>
-                            `;
-
-                                // اضافه کردن پیام به بالای فرم
-                                const form = document.querySelector('.code-form');
-                                form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                                // اگر محدودیت زمانی وجود دارد
-                                if (data.wait_seconds) {
-                                    let waitTimer = data.wait_seconds;
-                                    const waitInterval = setInterval(() => {
-                                        waitTimer--;
-                                        button.innerHTML = `<i class="fas fa-clock"></i> <span>${waitTimer} ثانیه تا ارسال مجدد</span>`;
-
-                                        if (waitTimer <= 0) {
-                                            clearInterval(waitInterval);
-                                            button.disabled = false;
-                                            button.innerHTML = originalText;
-                                        }
-                                    }, 1000);
-                                } else {
-                                    // فعال کردن مجدد دکمه
-                                    setTimeout(() => {
-                                        button.disabled = false;
-                                        button.innerHTML = originalText;
-                                    }, 3000);
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Fetch error:', error);
-
-                            // نمایش پیام خطا
-                            const alertHTML = `
-                        <div class="alert alert-danger custom-alert mb-4">
-                            <div class="alert-icon">
-                                <i class="fas fa-exclamation-circle"></i>
-                            </div>
-                            <div class="alert-content">
-                                خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.
-                            </div>
-                        </div>
-                        `;
-
-                            // اضافه کردن پیام به بالای فرم
-                            const form = document.querySelector('.code-form');
-                            form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                            // فعال کردن مجدد دکمه
-                            button.disabled = false;
-                            button.innerHTML = originalText;
-                        });
-                });
-            });
-
-            // مدیریت ارسال مجدد کد
-            if (resendButton) {
-                console.log('Setting up resend button click handler');
-
-                // تست تشخیص کلیک
-                resendButton.setAttribute('onclick', "console.log('Inline click handler called')");
-
-                resendButton.addEventListener('click', function(e) {
-                    e.preventDefault(); // جلوگیری از اقدامات پیش‌فرض
-
-                    console.log('Resend button clicked');
-
-                    const type = this.getAttribute('data-type') || document.getElementById('identifier_type').value;
-                    const identifier = this.getAttribute('data-identifier') || document.getElementById('identifier').value;
-
-                    console.log('Resend code data:', { type, identifier });
-
-                    // غیرفعال کردن دکمه
-                    this.disabled = true;
-                    this.classList.add('disabled');
-                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>در حال ارسال...</span>';
-
-                    // گرفتن CSRF توکن به صورت مستقیم
-                    const csrf = document.querySelector('meta[name="csrf-token"]');
-                    let csrfToken = '';
-
-                    if (csrf) {
-                        csrfToken = csrf.getAttribute('content');
-                        console.log('CSRF token found:', csrfToken ? 'Yes (length: ' + csrfToken.length + ')' : 'No');
-                    } else {
-                        console.error('CSRF token meta tag not found!');
-                        // نمایش پیام خطا
-                        const alertHTML = `
-                        <div class="alert alert-danger custom-alert mb-4">
-                            <div class="alert-icon">
-                                <i class="fas fa-exclamation-circle"></i>
-                            </div>
-                            <div class="alert-content">
-                                خطا: تگ CSRF پیدا نشد. لطفاً صفحه را بازنشانی کنید.
-                            </div>
-                        </div>
-                        `;
-                        // اضافه کردن پیام به بالای فرم
-                        const form = document.querySelector('.code-form');
-                        form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                        // بازگرداندن دکمه به حالت اولیه
-                        this.disabled = false;
-                        this.classList.remove('disabled');
-                        this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
-                        return;
-                    }
-
-                    // ارسال درخواست به سرور
-                    const url = '/auth/send-verification-code';
-                    console.log('Sending request to:', url);
-
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            identifier_type: type,
-                            identifier: identifier
-                        })
-                    })
-                        .then(response => {
-                            console.log('Response received:', response.status, response.statusText);
-                            if (!response.ok) {
-                                throw new Error('Server returned ' + response.status + ': ' + response.statusText);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('Response data:', data);
-
-                            if (data.success) {
-                                // نمایش پیام موفقیت
-                                const alertHTML = `
-                            <div class="alert alert-success custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-check-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    ${data.message}
-                                </div>
-                            </div>
-                            `;
-
-                                // حذف پیام‌های قبلی
-                                document.querySelectorAll('.custom-alert').forEach(alert => {
-                                    alert.remove();
-                                });
-
-                                // اضافه کردن پیام به بالای فرم
-                                const form = document.querySelector('.code-form');
-                                form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                                // در محیط توسعه، کد را نمایش دهید
-                                if (data.dev_code) {
-                                    const devCodeHTML = `
-                                <div class="alert alert-info custom-alert mb-4">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-info-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        <strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}
-                                    </div>
-                                </div>
-                                `;
-                                    form.insertAdjacentHTML('beforebegin', devCodeHTML);
-                                }
-
-                                // بروزرسانی زمان انقضا
-                                if (expiresAtElement) {
-                                    expiresAtElement.value = data.expires_at;
-                                }
-
-                                // بروزرسانی وضعیت انقضا
-                                if (codeExpiredElement) {
-                                    codeExpiredElement.value = 'false';
-                                }
-
-                                // پاک کردن پیام وضعیت
-                                if (statusMessage) {
-                                    statusMessage.textContent = '';
-                                    statusMessage.className = 'mt-2 text-sm';
-                                }
-
-                                // شروع مجدد تایمر
-                                if (window.verificationTimer) {
-                                    window.verificationTimer.resetTimer(data.expires_at);
-                                } else {
-                                    window.verificationTimer = new VerificationTimer(data.expires_at);
-                                }
-
-                                // پنهان کردن دکمه ارسال مجدد
-                                resendContainer.classList.add('d-none');
-
-                                // فوکوس روی اولین فیلد کد
-                                if (codeInputs.length) {
-                                    codeInputs[0].focus();
-                                }
-
-                                // پاک کردن فیلدهای کد
-                                codeInputs.forEach(input => {
-                                    input.value = '';
-                                });
-                                updateVerificationCode();
-
-                            } else {
-                                // نمایش پیام خطا
-                                const alertHTML = `
-                            <div class="alert alert-danger custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    ${data.message}
-                                </div>
-                            </div>
-                            `;
-
-                                // حذف پیام‌های قبلی
-                                document.querySelectorAll('.custom-alert').forEach(alert => {
-                                    alert.remove();
-                                });
-
-                                // اضافه کردن پیام به بالای فرم
-                                const form = document.querySelector('.code-form');
-                                form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                                // اگر محدودیت زمانی وجود دارد
-                                if (data.wait_seconds) {
-                                    let waitTimer = data.wait_seconds;
-                                    const waitInterval = setInterval(() => {
-                                        waitTimer--;
-                                        this.innerHTML = `<i class="fas fa-clock"></i> <span>${waitTimer} ثانیه تا ارسال مجدد</span>`;
-
-                                        if (waitTimer <= 0) {
-                                            clearInterval(waitInterval);
-                                            this.disabled = false;
-                                            this.classList.remove('disabled');
-                                            this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
-                                        }
-                                    }, 1000);
-                                } else {
-                                    // بازگرداندن دکمه به حالت اولیه
-                                    this.disabled = false;
-                                    this.classList.remove('disabled');
-                                    this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-
-                            // نمایش پیام خطا
-                            const alertHTML = `
-                        <div class="alert alert-danger custom-alert mb-4">
-                            <div class="alert-icon">
-                                <i class="fas fa-exclamation-circle"></i>
-                            </div>
-                            <div class="alert-content">
-                                خطا در ارسال کد تأیید: ${error.message}
-                            </div>
-                        </div>
-                        `;
-
-                            // حذف پیام‌های قبلی
-                            document.querySelectorAll('.custom-alert').forEach(alert => {
-                                alert.remove();
-                            });
-
-                            // اضافه کردن پیام به بالای فرم
-                            const form = document.querySelector('.code-form');
-                            form.insertAdjacentHTML('beforebegin', alertHTML);
-
-                            // بازگرداندن دکمه به حالت اولیه
-                            this.disabled = false;
-                            this.classList.remove('disabled');
-                            this.innerHTML = '<i class="fas fa-redo-alt"></i> <span>ارسال مجدد کد</span>';
-                        });
-                });
-
-                // اضافه کردن گوش‌دهنده به صورت مستقیم به دام برای مطمئن شدن از فراخوانی
-                const btnEl = document.getElementById('resend-code-btn');
-                if (btnEl) {
-                    console.log('Adding direct click handler');
-                    btnEl.onclick = function() {
-                        console.log('Direct click handler called');
-                    };
-                }
-            } else {
-                console.error('Resend button not found!');
-            }
-
-            // اعتبارسنجی فرم‌ها قبل از ارسال
-            const passwordForm = document.querySelector('.password-form');
-            if (passwordForm) {
-                passwordForm.addEventListener('submit', function(e) {
-                    const passwordInput = document.getElementById('password');
-                    if (!passwordInput.value.trim()) {
-                        e.preventDefault();
-                        passwordInput.classList.add('is-invalid');
-
-                        // نمایش پیام خطا
-                        let feedback = passwordInput.parentElement.nextElementSibling;
-                        if (!feedback || !feedback.classList.contains('invalid-feedback')) {
-                            feedback = document.createElement('div');
-                            feedback.className = 'invalid-feedback d-block';
-                            passwordInput.parentElement.after(feedback);
-                        }
-
-                        feedback.textContent = 'لطفاً رمز عبور خود را وارد کنید.';
-                    }
-                });
-            }
-
-            const codeForm = document.querySelector('.code-form');
-            if (codeForm) {
-                codeForm.addEventListener('submit', function(e) {
-                    const verificationCode = document.getElementById('verification_code');
-                    if (!verificationCode.value || verificationCode.value.length !== 6) {
-                        e.preventDefault();
-
-                        // نمایش پیام خطا
-                        const alertHTML = `
-                            <div class="alert alert-danger custom-alert mb-4">
-                                <div class="alert-icon">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                </div>
-                                <div class="alert-content">
-                                    لطفاً کد تأیید 6 رقمی را وارد کنید.
-                                </div>
-                            </div>
-                        `;
-
-                        // حذف پیام‌های قبلی
-                        document.querySelectorAll('.custom-alert').forEach(alert => {
-                            alert.remove();
-                        });
-
-                        // اضافه کردن پیام به بالای فرم
-                        codeForm.insertAdjacentHTML('beforebegin', alertHTML);
-
-                        // فوکوس روی اولین فیلد خالی
-                        let firstEmptyInput = null;
-                        for (let i = 0; i < codeInputs.length; i++) {
-                            if (!codeInputs[i].value) {
-                                firstEmptyInput = codeInputs[i];
-                                break;
-                            }
-                        }
-
-                        if (firstEmptyInput) {
-                            firstEmptyInput.focus();
-                        } else {
-                            codeInputs[0].focus();
-                        }
-                    }
-                });
-            }
-
-            // راه‌اندازی تایمر در زمان بارگذاری صفحه
-            if (expiresAtElement && expiresAtElement.value) {
-                const expiresAt = parseInt(expiresAtElement.value);
-                if (expiresAt) {
-                    window.verificationTimer = new VerificationTimer(expiresAt);
-                }
-            } else if (codeExpiredElement && codeExpiredElement.value === 'true') {
-                // اگر کد منقضی شده است
-                countdownElement.textContent = '00:00 مانده تا انقضای کد';
-                if (statusMessage) {
-                    statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
-                    statusMessage.className = 'mt-2 text-sm text-danger';
-                }
-
-                if (resendContainer) {
-                    resendContainer.classList.remove('d-none');
-                }
-                if (resendButton) {
-                    resendButton.disabled = false;
-                    resendButton.classList.remove('disabled');
-                }
-            } else {
-                // اگر هیچ کدی ارسال نشده است
-                countdownElement.textContent = 'کد تأییدی ارسال نشده است';
-            }
-
-            // اگر کد تأیید قبلاً ارسال شده، فوکوس روی اولین فیلد
-            if ((expiresAtElement && expiresAtElement.value) || (codeExpiredElement && codeExpiredElement.value === 'true')) {
-                if (codeInputs.length) {
-                    codeInputs[0].focus();
-                }
-            }
-
-            // بررسی نهایی - تزریق یک دکمه تست برای مطمئن شدن از عملکرد JavaScript
-            console.log('Injecting test button');
-            const testBtn = document.createElement('button');
-            testBtn.type = 'button';
-            testBtn.className = 'btn btn-sm btn-warning mt-2 d-none'; // d-none برای مخفی کردن در محیط تولید
-            testBtn.textContent = 'دکمه تست';
-            testBtn.onclick = function() {
-                alert('JavaScript کار می‌کند!');
-            };
-
-            if (resendContainer) {
-                resendContainer.appendChild(testBtn);
-            }
-
-            console.log('Script initialization complete');
-        });
-    </script>
 @endpush

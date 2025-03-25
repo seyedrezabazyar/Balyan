@@ -42,21 +42,27 @@ class VerificationCode extends Model
      */
     public static function generateFor(string $identifier, string $type, int $codeLength = 6, int $expiresInMinutes = 5): self
     {
-        // ثبت لاگ ابتدایی
+        if ($type === 'phone' && strpos($identifier, '*') !== false) {
+            $originalIdentifier = self::findOriginalIdentifier($identifier, $type);
+            if ($originalIdentifier) {
+                Log::info('Using original phone number instead of masked one', [
+                    'masked' => self::maskSensitiveData($identifier),
+                    'original' => self::maskSensitiveData($originalIdentifier)
+                ]);
+                $identifier = $originalIdentifier;
+            }
+        }
+
         Log::debug('Generating verification code', [
-            'identifier' => $identifier,
+            'identifier' => self::maskSensitiveData($identifier),
             'type' => $type,
             'length' => $codeLength,
             'expiry' => $expiresInMinutes
         ]);
 
-        // تولید کد تصادفی
         $code = self::generateRandomCode($codeLength);
-
-        // محاسبه زمان انقضا
         $expiresAt = now()->addMinutes($expiresInMinutes);
 
-        // ایجاد رکورد جدید
         $verificationCode = self::create([
             'identifier' => $identifier,
             'type' => $type,
@@ -67,13 +73,76 @@ class VerificationCode extends Model
         ]);
 
         Log::info("Generated verification code", [
-            'identifier' => $identifier,
+            'identifier' => self::maskSensitiveData($identifier),
             'type' => $type,
-            'code' => $code, // در محیط واقعی این لاگ را حذف کنید
+            'code' => $code,
             'expires_at' => $expiresAt->format('Y-m-d H:i:s')
         ]);
 
         return $verificationCode;
+    }
+
+    /**
+     * پیدا کردن شناسه اصلی (بدون ستاره) برای شناسه مخفی شده
+     *
+     * @param string $maskedIdentifier شناسه مخفی شده با ستاره
+     * @param string $type نوع شناسه
+     * @return string|null شناسه اصلی یا null اگر پیدا نشد
+     */
+    protected static function findOriginalIdentifier(string $maskedIdentifier, string $type): ?string
+    {
+        if (empty($maskedIdentifier) || !strpos($maskedIdentifier, '*')) {
+            return $maskedIdentifier;
+        }
+
+        try {
+            $parts = preg_split('/\*+/', $maskedIdentifier, -1, PREG_SPLIT_NO_EMPTY);
+
+            if (empty($parts)) {
+                return null;
+            }
+
+            $query = self::where('type', $type)
+                ->where('identifier', 'not like', '%*%')
+                ->orderBy('created_at', 'desc');
+
+            foreach ($parts as $index => $part) {
+                if (empty($part)) continue;
+
+                if ($index === 0) {
+                    $query->where('identifier', 'like', $part . '%');
+                } elseif ($index === count($parts) - 1) {
+                    $query->where('identifier', 'like', '%' . $part);
+                } else {
+                    $query->where('identifier', 'like', '%' . $part . '%');
+                }
+            }
+
+            $originalIdentifier = $query->value('identifier');
+
+            if ($originalIdentifier) {
+                return $originalIdentifier;
+            }
+
+            $estimatedLength = strlen($maskedIdentifier);
+            $prefix = $parts[0] ?? '';
+            $suffix = $parts[count($parts) - 1] ?? '';
+
+            return self::where('type', $type)
+                ->where('identifier', 'not like', '%*%')
+                ->where('identifier', 'like', $prefix . '%')
+                ->where('identifier', 'like', '%' . $suffix)
+                ->whereRaw('LENGTH(identifier) = ?', [$estimatedLength])
+                ->orderBy('created_at', 'desc')
+                ->value('identifier');
+        } catch (\Exception $e) {
+            Log::error('Error finding original identifier: ' . $e->getMessage(), [
+                'masked' => self::maskSensitiveData($maskedIdentifier),
+                'type' => $type,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
     }
 
     /**
@@ -84,19 +153,10 @@ class VerificationCode extends Model
      */
     protected static function generateRandomCode(int $length): string
     {
-        // روش اول: استفاده از اعداد تصادفی
         return (string) mt_rand(
             (int) pow(10, $length - 1),
             (int) pow(10, $length) - 1
         );
-
-        // روش دوم: تولید کد با کاراکترهای تصادفی
-        // $characters = '0123456789';
-        // $code = '';
-        // for ($i = 0; $i < $length; $i++) {
-        //     $code .= $characters[random_int(0, strlen($characters) - 1)];
-        // }
-        // return $code;
     }
 
     /**
@@ -109,7 +169,17 @@ class VerificationCode extends Model
      */
     public static function validate(string $identifier, string $code, string $type): bool
     {
-        // پیدا کردن کد تأیید معتبر و منقضی نشده
+        if ($type === 'phone' && strpos($identifier, '*') !== false) {
+            $originalIdentifier = self::findOriginalIdentifier($identifier, $type);
+            if ($originalIdentifier) {
+                Log::info('Using original phone number for validation instead of masked one', [
+                    'masked' => self::maskSensitiveData($identifier),
+                    'original' => self::maskSensitiveData($originalIdentifier)
+                ]);
+                $identifier = $originalIdentifier;
+            }
+        }
+
         $verificationCode = self::where('identifier', $identifier)
             ->where('type', $type)
             ->where('code', $code)
@@ -119,12 +189,11 @@ class VerificationCode extends Model
 
         if (!$verificationCode) {
             Log::info("Invalid verification code attempt", [
-                'identifier' => $identifier,
+                'identifier' => self::maskSensitiveData($identifier),
                 'type' => $type,
                 'provided_code' => $code
             ]);
 
-            // افزودن تعداد تلاش‌های ناموفق برای همه کدهای فعال این شناسه
             self::where('identifier', $identifier)
                 ->where('type', $type)
                 ->where('used', false)
@@ -134,15 +203,13 @@ class VerificationCode extends Model
             return false;
         }
 
-        // بررسی تعداد تلاش‌های ناموفق
         if ($verificationCode->attempts >= 5) {
             Log::warning("Too many unsuccessful attempts for verification code", [
-                'identifier' => $identifier,
+                'identifier' => self::maskSensitiveData($identifier),
                 'type' => $type,
                 'attempts' => $verificationCode->attempts
             ]);
 
-            // غیرفعال کردن کد بعد از تلاش‌های زیاد
             $verificationCode->update([
                 'used' => true
             ]);
@@ -150,13 +217,12 @@ class VerificationCode extends Model
             return false;
         }
 
-        // علامت‌گذاری کد به عنوان استفاده شده
         $verificationCode->update([
             'used' => true
         ]);
 
         Log::info("Verification code validated successfully", [
-            'identifier' => $identifier,
+            'identifier' => self::maskSensitiveData($identifier),
             'type' => $type
         ]);
 
@@ -164,61 +230,85 @@ class VerificationCode extends Model
     }
 
     /**
-     * بررسی اینکه آیا می‌توان کد جدیدی ارسال کرد یا خیر
+     * بررسی امکان ارسال کد جدید با توجه به محدودیت‌های زمانی و تعداد
      *
      * @param string $identifier ایمیل یا شماره موبایل
      * @param string $type نوع شناسه (email یا phone)
-     * @param int $limitInSeconds محدودیت زمانی بین درخواست‌ها به ثانیه (پیش‌فرض: 60)
+     * @param int $limitInSeconds محدودیت زمانی بین درخواست‌ها به ثانیه (پیش‌فرض: 300)
      * @param int $maxPerDay حداکثر تعداد درخواست در روز (پیش‌فرض: 10)
-     * @return true|int true اگر ارسال مجاز باشد، وگرنه ثانیه‌های باقی‌مانده
+     * @return true|int|array true اگر ارسال مجاز باشد، وگرنه ثانیه‌های باقی‌مانده یا آرایه‌ای با اطلاعات محدودیت
      */
     public static function canSendNew(string $identifier, string $type, int $limitInSeconds = 300, int $maxPerDay = 10)
     {
-        // بررسی زمان آخرین کد ارسال شده
-        $lastCode = self::where('identifier', $identifier)
-            ->where('type', $type)
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if ($lastCode) {
-            // محاسبه زمان بین درخواست فعلی و آخرین درخواست
-            $timeSinceLastCode = $lastCode->created_at->diffInSeconds(now());
-
-            // اگر کمتر از محدودیت زمانی است
-            if ($timeSinceLastCode < $limitInSeconds) {
-                return $limitInSeconds - $timeSinceLastCode;
+        try {
+            $originalIdentifier = $identifier;
+            if ($type === 'phone' && strpos($identifier, '*') !== false) {
+                $foundIdentifier = self::findOriginalIdentifier($identifier, $type);
+                if ($foundIdentifier) {
+                    Log::info('Using original phone number for rate limiting instead of masked one', [
+                        'masked' => self::maskSensitiveData($identifier),
+                        'original' => self::maskSensitiveData($foundIdentifier)
+                    ]);
+                    $originalIdentifier = $foundIdentifier;
+                }
             }
-        }
 
-        // بررسی تعداد کدهای ارسال شده در 24 ساعت گذشته
-        $codesInLastDay = self::where('identifier', $identifier)
-            ->where('type', $type)
-            ->where('created_at', '>=', now()->subDay())
-            ->count();
-
-        if ($codesInLastDay >= $maxPerDay) {
-            Log::warning("Maximum daily verification codes reached", [
-                'identifier' => $identifier,
-                'type' => $type,
-                'count' => $codesInLastDay
-            ]);
-
-            // محاسبه زمان باقی‌مانده تا ریست محدودیت روزانه
-            $oldestInDay = self::where('identifier', $identifier)
+            $lastCode = self::where('identifier', $originalIdentifier)
                 ->where('type', $type)
-                ->where('created_at', '>=', now()->subDay())
-                ->orderBy('created_at', 'asc')
+                ->latest('created_at')
                 ->first();
 
-            if ($oldestInDay) {
-                $resetTime = $oldestInDay->created_at->addDay()->diffInSeconds(now());
-                return $resetTime > 0 ? $resetTime : 1;
+            if ($lastCode) {
+                $timeSinceLastCode = $lastCode->created_at->diffInSeconds(now());
+
+                if ($timeSinceLastCode < $limitInSeconds) {
+                    $remainingSeconds = $limitInSeconds - $timeSinceLastCode;
+
+                    Log::info("Rate limit for verification code", [
+                        'identifier' => self::maskSensitiveData($originalIdentifier),
+                        'type' => $type,
+                        'remaining_seconds' => $remainingSeconds,
+                        'limit_type' => 'time_between_requests'
+                    ]);
+
+                    return $remainingSeconds;
+                }
             }
 
-            return 86400; // 24 ساعت به ثانیه
-        }
+            $todayStart = now()->startOfDay();
+            $codesInToday = self::where('identifier', $originalIdentifier)
+                ->where('type', $type)
+                ->where('created_at', '>=', $todayStart)
+                ->count();
 
-        return true;
+            if ($codesInToday >= $maxPerDay) {
+                $endOfDay = now()->endOfDay();
+                $remainingSeconds = now()->diffInSeconds($endOfDay);
+
+                Log::warning("Maximum daily verification codes reached", [
+                    'identifier' => self::maskSensitiveData($originalIdentifier),
+                    'type' => $type,
+                    'count' => $codesInToday,
+                    'remaining_seconds' => $remainingSeconds,
+                    'limit_type' => 'daily_limit'
+                ]);
+
+                return [
+                    'remaining_seconds' => $remainingSeconds > 0 ? $remainingSeconds : 1,
+                    'daily_limit_reached' => true,
+                    'message' => 'حداکثر تعداد کدهای مجاز در روز استفاده شده است.'
+                ];
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Error in canSendNew method: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'identifier_type' => $type
+            ]);
+
+            return true;
+        }
     }
 
     /**
@@ -243,7 +333,6 @@ class VerificationCode extends Model
      */
     public static function cleanup(int $olderThanDays = 30): int
     {
-        // حذف کدهای منقضی شده و قدیمی
         $count = self::where(function ($query) {
             $query->where('used', true)
                 ->orWhere('expires_at', '<', now());
@@ -254,5 +343,36 @@ class VerificationCode extends Model
         Log::info("Cleaned up old verification codes", ['count' => $count]);
 
         return $count;
+    }
+
+    /**
+     * مخفی کردن اطلاعات حساس برای لاگ کردن
+     *
+     * @param string $data داده حساس
+     * @return string داده مخفی شده
+     */
+    protected static function maskSensitiveData(string $data): string
+    {
+        if (empty($data)) {
+            return '';
+        }
+
+        if (preg_match('/^\d+$/', $data)) {
+            $length = strlen($data);
+            if ($length <= 4) {
+                return $data;
+            }
+            return substr($data, 0, 4) . str_repeat('*', min($length - 7, 5)) . substr($data, -3);
+        }
+
+        if (strpos($data, '@') !== false) {
+            list($username, $domain) = explode('@', $data);
+            $usernameLength = strlen($username);
+            $maskedUsername = substr($username, 0, min(3, $usernameLength)) .
+                str_repeat('*', max(1, $usernameLength - 3));
+            return $maskedUsername . '@' . $domain;
+        }
+
+        return substr($data, 0, 3) . '***' . substr($data, -3);
     }
 }

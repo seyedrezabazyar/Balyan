@@ -3,7 +3,6 @@
 @section('title', 'ورود به حساب کاربری')
 
 @push('head')
-    <!-- بارگذاری اسکریپت reCAPTCHA v3 با کلید سایت جدید -->
     <script src="https://www.google.com/recaptcha/api.js?render={{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}"></script>
 @endpush
 
@@ -46,7 +45,6 @@
                         <form method="POST" action="{{ route('auth.identify') }}" class="bl-login-form">
                             @csrf
 
-                            <!-- فیلد مخفی reCAPTCHA -->
                             <input type="hidden" name="g-recaptcha-response" id="recaptchaResponse">
 
                             @if(request()->has('redirect'))
@@ -173,6 +171,206 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleOptions = document.querySelectorAll('.bl-toggle-option');
+            const inputSections = document.querySelectorAll('.bl-input-section');
+            const phoneInput = document.getElementById('phone');
+            const emailInput = document.getElementById('email');
+            const loginForm = document.querySelector('.bl-login-form');
+            const recaptchaResponse = document.getElementById('recaptchaResponse');
+
+            function getRecaptchaToken(action) {
+                if (typeof grecaptcha !== 'undefined' && grecaptcha) {
+                    grecaptcha.ready(function() {
+                        try {
+                            grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: action})
+                                .then(function(token) {
+                                    if (recaptchaResponse) {
+                                        recaptchaResponse.value = token;
+                                    }
+                                });
+                        } catch (error) {
+                        }
+                    });
+                }
+            }
+
+            setTimeout(function() {
+                getRecaptchaToken('login_page_load');
+            }, 1000);
+
+            const persianToEnglish = (str) => {
+                const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+                const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+                if (!str) return str;
+
+                for (let i = 0; i < 10; i++) {
+                    const regex = new RegExp(persianNumbers[i], 'g');
+                    str = str.toString().replace(regex, englishNumbers[i]);
+                }
+
+                return str;
+            };
+
+            const normalizePhoneNumber = (phone) => {
+                phone = persianToEnglish(phone);
+                phone = phone.replace(/\D/g, '');
+
+                if (phone.startsWith('98')) {
+                    phone = phone.substring(2);
+                }
+
+                if (phone.length > 0 && !phone.startsWith('0')) {
+                    phone = '0' + phone;
+                }
+
+                return phone;
+            };
+
+            toggleOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const target = this.getAttribute('data-target');
+
+                    toggleOptions.forEach(opt => opt.classList.remove('active'));
+                    this.classList.add('active');
+
+                    inputSections.forEach(section => section.classList.remove('active'));
+                    document.getElementById(target).classList.add('active');
+
+                    if (target === 'phone-input-section') {
+                        phoneInput.focus();
+                        phoneInput.setAttribute('required', 'required');
+                        emailInput.removeAttribute('required');
+                    } else {
+                        emailInput.focus();
+                        emailInput.setAttribute('required', 'required');
+                        phoneInput.removeAttribute('required');
+                    }
+                });
+            });
+
+            if (phoneInput) {
+                if (phoneInput.value) {
+                    phoneInput.value = normalizePhoneNumber(phoneInput.value);
+                }
+
+                phoneInput.addEventListener('input', function(e) {
+                    let value = normalizePhoneNumber(this.value);
+
+                    if (value.length > 11) {
+                        value = value.substring(0, 11);
+                    }
+
+                    this.value = value;
+                    this.classList.remove('is-invalid');
+
+                    const feedback = document.querySelector('.bl-phone-input-container .invalid-feedback');
+                    if (feedback) {
+                        feedback.remove();
+                    }
+                });
+            }
+
+            if (emailInput) {
+                emailInput.addEventListener('input', function() {
+                    this.classList.remove('is-invalid');
+
+                    const feedback = document.querySelector('.bl-email-input-container .invalid-feedback');
+                    if (feedback) {
+                        feedback.remove();
+                    }
+                });
+            }
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const activeMethod = document.querySelector('.bl-toggle-option.active').getAttribute('data-target');
+                    let isValid = true;
+
+                    if (activeMethod === 'phone-input-section') {
+                        const phoneValue = phoneInput.value.trim();
+                        const phonePattern = /^09\d{9}$/;
+
+                        if (!phonePattern.test(phoneValue)) {
+                            isValid = false;
+                            phoneInput.classList.add('is-invalid');
+
+                            let feedback = document.querySelector('.bl-phone-input-container .invalid-feedback');
+                            if (!feedback) {
+                                feedback = document.createElement('div');
+                                feedback.className = 'invalid-feedback d-block';
+                                phoneInput.parentNode.parentNode.appendChild(feedback);
+                            }
+
+                            feedback.textContent = 'لطفاً یک شماره موبایل معتبر وارد کنید (مثال: 09123456789)';
+                        }
+                    } else {
+                        const emailValue = emailInput.value.trim();
+                        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                        if (!emailPattern.test(emailValue)) {
+                            isValid = false;
+                            emailInput.classList.add('is-invalid');
+
+                            let feedback = document.querySelector('.bl-email-input-container .invalid-feedback');
+                            if (!feedback) {
+                                feedback = document.createElement('div');
+                                feedback.className = 'invalid-feedback d-block';
+                                emailInput.parentNode.parentNode.appendChild(feedback);
+                            }
+
+                            feedback.textContent = 'لطفاً یک آدرس ایمیل معتبر وارد کنید';
+                        }
+                    }
+
+                    if (isValid) {
+                        const submitButton = loginForm.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                            const btnText = submitButton.querySelector('.bl-btn-text');
+                            if (btnText) {
+                                btnText.textContent = 'در حال پردازش...';
+                            }
+                        }
+
+                        if (typeof grecaptcha !== 'undefined' && grecaptcha) {
+                            try {
+                                grecaptcha.ready(function() {
+                                    grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: 'login_submit'})
+                                        .then(function(token) {
+                                            if (recaptchaResponse) {
+                                                recaptchaResponse.value = token;
+                                            }
+                                            loginForm.submit();
+                                        })
+                                        .catch(function() {
+                                            loginForm.submit();
+                                        });
+                                });
+                            } catch (error) {
+                                loginForm.submit();
+                            }
+                        } else {
+                            loginForm.submit();
+                        }
+
+                        setTimeout(function() {
+                            if (submitButton && submitButton.disabled) {
+                                loginForm.submit();
+                            }
+                        }, 3000);
+                    }
+                });
+            }
+        });
+    </script>
+@endpush
 
 @push('styles')
     <style>
@@ -635,252 +833,3 @@
     </style>
 @endpush
 
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing form...');
-
-            // متغیرهای مربوط به فرم
-            const toggleOptions = document.querySelectorAll('.bl-toggle-option');
-            const inputSections = document.querySelectorAll('.bl-input-section');
-            const phoneInput = document.getElementById('phone');
-            const emailInput = document.getElementById('email');
-            const loginForm = document.querySelector('.bl-login-form');
-            const recaptchaResponse = document.getElementById('recaptchaResponse');
-
-            // تابع ساده برای دریافت توکن reCAPTCHA - با کلید جدید
-            function getRecaptchaToken(action) {
-                console.log('Attempting to get reCAPTCHA token for action: ' + action);
-
-                if (typeof grecaptcha !== 'undefined' && grecaptcha) {
-                    grecaptcha.ready(function() {
-                        try {
-                            grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: action})
-                                .then(function(token) {
-                                    if (recaptchaResponse) {
-                                        recaptchaResponse.value = token;
-                                        console.log('reCAPTCHA token set (first 10 chars): ' + token.substring(0, 10) + '...');
-                                    } else {
-                                        console.error('recaptchaResponse element not found');
-                                    }
-                                })
-                                .catch(function(error) {
-                                    console.error('Error executing reCAPTCHA:', error);
-                                });
-                        } catch (error) {
-                            console.error('Error in grecaptcha.execute:', error);
-                        }
-                    });
-                } else {
-                    console.error('grecaptcha not available');
-                }
-            }
-
-            // تست توکن reCAPTCHA در بارگذاری صفحه
-            setTimeout(function() {
-                getRecaptchaToken('login_page_load');
-            }, 1000);
-
-            // تبدیل اعداد فارسی به انگلیسی
-            const persianToEnglish = (str) => {
-                const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-                const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-                if (!str) return str;
-
-                for (let i = 0; i < 10; i++) {
-                    const regex = new RegExp(persianNumbers[i], 'g');
-                    str = str.toString().replace(regex, englishNumbers[i]);
-                }
-
-                return str;
-            };
-
-            // پاکسازی شماره موبایل
-            const normalizePhoneNumber = (phone) => {
-                phone = persianToEnglish(phone);
-                phone = phone.replace(/\D/g, '');
-
-                if (phone.startsWith('98')) {
-                    phone = phone.substring(2);
-                }
-
-                if (phone.length > 0 && !phone.startsWith('0')) {
-                    phone = '0' + phone;
-                }
-
-                return phone;
-            };
-
-            // تغییر روش ورود
-            toggleOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    const target = this.getAttribute('data-target');
-
-                    // فعال کردن گزینه انتخاب شده
-                    toggleOptions.forEach(opt => opt.classList.remove('active'));
-                    this.classList.add('active');
-
-                    // نمایش بخش مربوطه
-                    inputSections.forEach(section => section.classList.remove('active'));
-                    document.getElementById(target).classList.add('active');
-
-                    // تنظیم فوکوس
-                    if (target === 'phone-input-section') {
-                        phoneInput.focus();
-                        phoneInput.setAttribute('required', 'required');
-                        emailInput.removeAttribute('required');
-                    } else {
-                        emailInput.focus();
-                        emailInput.setAttribute('required', 'required');
-                        phoneInput.removeAttribute('required');
-                    }
-                });
-            });
-
-            // مدیریت فیلد شماره موبایل
-            if (phoneInput) {
-                // تنظیم مقدار اولیه
-                if (phoneInput.value) {
-                    phoneInput.value = normalizePhoneNumber(phoneInput.value);
-                }
-
-                // به روزرسانی مقدار هنگام تایپ
-                phoneInput.addEventListener('input', function(e) {
-                    let value = normalizePhoneNumber(this.value);
-
-                    // محدود کردن به 11 رقم (با احتساب 0 اول)
-                    if (value.length > 11) {
-                        value = value.substring(0, 11);
-                    }
-
-                    this.value = value;
-                    this.classList.remove('is-invalid');
-
-                    // حذف پیام خطا
-                    const feedback = document.querySelector('.bl-phone-input-container .invalid-feedback');
-                    if (feedback) {
-                        feedback.remove();
-                    }
-                });
-            }
-
-            // مدیریت فیلد ایمیل
-            if (emailInput) {
-                emailInput.addEventListener('input', function() {
-                    this.classList.remove('is-invalid');
-
-                    // حذف پیام خطا
-                    const feedback = document.querySelector('.bl-email-input-container .invalid-feedback');
-                    if (feedback) {
-                        feedback.remove();
-                    }
-                });
-            }
-
-            // اعتبارسنجی فرم هنگام ارسال
-            if (loginForm) {
-                loginForm.addEventListener('submit', function(e) {
-                    // مانع از ارسال فرم می‌شویم تا اعتبارسنجی انجام شود
-                    e.preventDefault();
-
-                    console.log('Form submit event triggered');
-
-                    // بررسی اعتبارسنجی فیلدها
-                    const activeMethod = document.querySelector('.bl-toggle-option.active').getAttribute('data-target');
-                    let isValid = true;
-
-                    if (activeMethod === 'phone-input-section') {
-                        // اعتبارسنجی شماره موبایل
-                        const phoneValue = phoneInput.value.trim();
-                        const phonePattern = /^09\d{9}$/;
-
-                        if (!phonePattern.test(phoneValue)) {
-                            isValid = false;
-                            phoneInput.classList.add('is-invalid');
-
-                            let feedback = document.querySelector('.bl-phone-input-container .invalid-feedback');
-                            if (!feedback) {
-                                feedback = document.createElement('div');
-                                feedback.className = 'invalid-feedback d-block';
-                                phoneInput.parentNode.parentNode.appendChild(feedback);
-                            }
-
-                            feedback.textContent = 'لطفاً یک شماره موبایل معتبر وارد کنید (مثال: 09123456789)';
-                        }
-                    } else {
-                        // اعتبارسنجی ایمیل
-                        const emailValue = emailInput.value.trim();
-                        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-                        if (!emailPattern.test(emailValue)) {
-                            isValid = false;
-                            emailInput.classList.add('is-invalid');
-
-                            let feedback = document.querySelector('.bl-email-input-container .invalid-feedback');
-                            if (!feedback) {
-                                feedback = document.createElement('div');
-                                feedback.className = 'invalid-feedback d-block';
-                                emailInput.parentNode.parentNode.appendChild(feedback);
-                            }
-
-                            feedback.textContent = 'لطفاً یک آدرس ایمیل معتبر وارد کنید';
-                        }
-                    }
-
-                    if (isValid) {
-                        // نمایش حالت در حال پردازش
-                        const submitButton = loginForm.querySelector('button[type="submit"]');
-                        if (submitButton) {
-                            submitButton.disabled = true;
-                            const btnText = submitButton.querySelector('.bl-btn-text');
-                            if (btnText) {
-                                btnText.textContent = 'در حال پردازش...';
-                            }
-                        }
-
-                        // تلاش برای گرفتن توکن reCAPTCHA
-                        if (typeof grecaptcha !== 'undefined' && grecaptcha) {
-                            try {
-                                grecaptcha.ready(function() {
-                                    grecaptcha.execute('{{ env('RECAPTCHA_SITE_KEY', '6LfqibojAAAAACO7WykajmOnAjoYtXwfsKNtuHQA') }}', {action: 'login_submit'})
-                                        .then(function(token) {
-                                            if (recaptchaResponse) {
-                                                recaptchaResponse.value = token;
-                                                console.log('Token set for submission (first 10 chars): ' + token.substring(0, 10) + '...');
-                                            }
-                                            // ارسال فرم بعد از دریافت توکن
-                                            console.log('Submitting form after getting token');
-                                            loginForm.submit();
-                                        })
-                                        .catch(function(error) {
-                                            console.error('Error getting token:', error);
-                                            // ارسال فرم حتی در صورت خطا
-                                            console.log('Submitting form despite token error');
-                                            loginForm.submit();
-                                        });
-                                });
-                            } catch (error) {
-                                console.error('Fatal error in reCAPTCHA execution:', error);
-                                // ارسال فرم در صورت خطا
-                                console.log('Submitting form despite fatal error');
-                                loginForm.submit();
-                            }
-                        } else {
-                            console.log('grecaptcha not available, submitting form directly');
-                            loginForm.submit();
-                        }
-
-                        // زمان‌سنج امنیتی - اگر بعد از 3 ثانیه هنوز ارسال نشده، آن را ارسال کن
-                        setTimeout(function() {
-                            if (submitButton && submitButton.disabled) {
-                                console.log('3-second timeout reached, forcing form submission');
-                                loginForm.submit();
-                            }
-                        }, 3000);
-                    }
-                });
-            }
-        });
-    </script>
-@endpush

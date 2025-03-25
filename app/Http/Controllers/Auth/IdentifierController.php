@@ -27,12 +27,11 @@ class IdentifierController extends Controller
             'email' => $request->input('email'),
         ]);
 
-        // اعتبارسنجی اولیه براساس روش انتخاب شده
         $validator = Validator::make($request->all(), [
             'login_method' => 'required|in:phone,email',
             'email' => 'required_if:login_method,email|email|nullable',
             'phone' => 'required_if:login_method,phone|regex:/^09\d{9}$/|nullable',
-            'g-recaptcha-response' => 'nullable', // reCAPTCHA اختیاری شد
+            'g-recaptcha-response' => 'nullable',
         ], [
             'email.required_if' => 'لطفاً ایمیل خود را وارد کنید.',
             'email.email' => 'ایمیل وارد شده معتبر نیست.',
@@ -49,12 +48,10 @@ class IdentifierController extends Controller
                 ->withInput();
         }
 
-        // بررسی reCAPTCHA
         if (!$this->validateRecaptcha($request)) {
             return back()->with('error', 'تأیید reCAPTCHA ناموفق بود. لطفاً دوباره تلاش کنید.');
         }
 
-        // تعیین نوع شناسه و مقدار آن براساس روش انتخاب شده
         $loginMethod = $request->input('login_method');
 
         if ($loginMethod === 'phone') {
@@ -65,7 +62,6 @@ class IdentifierController extends Controller
             $identifierType = 'email';
         }
 
-        // بررسی وجود کاربر
         $user = User::where($identifierType, $identifier)->first();
 
         $sessionData = [
@@ -78,10 +74,8 @@ class IdentifierController extends Controller
             'created_at' => now(),
         ];
 
-        // ذخیره اطلاعات در جلسه
         try {
             session()->put('auth_data', encrypt($sessionData));
-            // علامت‌گذاری اینکه کاربر از صفحه شناسایی آمده است
             session()->put('coming_from_identify', true);
 
             Log::info('Session data stored successfully', [
@@ -107,7 +101,6 @@ class IdentifierController extends Controller
      */
     public function validateRecaptcha(Request $request)
     {
-        // اگر reCAPTCHA وجود نداشت، اعتبارسنجی را رد نمی‌کنیم
         if (!$request->has('g-recaptcha-response') || empty($request->input('g-recaptcha-response'))) {
             return true;
         }
@@ -125,7 +118,6 @@ class IdentifierController extends Controller
                 'score' => $responseData['score'] ?? null
             ]);
 
-            // فقط در صورت امتیاز بسیار پایین، جلوگیری می‌کنیم
             if (isset($responseData['success']) && $responseData['success'] === true) {
                 if (isset($responseData['score']) && $responseData['score'] < 0.3) {
                     return false;
@@ -135,7 +127,6 @@ class IdentifierController extends Controller
             return true;
         } catch (\Exception $e) {
             Log::error('reCAPTCHA error', ['error' => $e->getMessage()]);
-            // حتی در صورت خطا، اجازه ادامه می‌دهیم
             return true;
         }
     }
@@ -178,7 +169,6 @@ class IdentifierController extends Controller
         if ($type === 'email') {
             return self::maskEmail($identifier);
         } else {
-            // پنهان کردن بخشی از شماره موبایل
             return substr_replace($identifier, '***', 4, 4);
         }
     }

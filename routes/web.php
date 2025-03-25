@@ -7,7 +7,7 @@ use App\Http\Controllers\Auth\RegistrationController;
 use Illuminate\Support\Facades\Route;
 
 // Authentication routes accessible only to guests
-Route::prefix('auth')->middleware('guest')->group(function () {
+Route::prefix('auth')->middleware(['web', 'guest'])->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/identify', [IdentifierController::class, 'identify'])->name('auth.identify');
     Route::get('/verify', [VerificationController::class, 'showVerificationForm'])->name('auth.verify-form');
@@ -20,7 +20,7 @@ Route::prefix('auth')->middleware('guest')->group(function () {
 });
 
 // Logout route (accessible only to authenticated users)
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware(['web', 'auth']);
 
 // General routes (accessible to everyone)
 
