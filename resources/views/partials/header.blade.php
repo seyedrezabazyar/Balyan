@@ -74,9 +74,8 @@
                                     <strong>{{ Auth::user()->name }}</strong>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2 text-primary" aria-hidden="true"></i> پروفایل</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-book me-2 text-info" aria-hidden="true"></i> کتاب‌های من</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-bookmark me-2 text-warning" aria-hidden="true"></i> نشان‌شده‌ها</a></li>
+                                <li><a class="dropdown-item" href="{{ route('dashboard.index') }}"><i class="fas fa-user me-2 text-primary" aria-hidden="true"></i> پروفایل</a></li>
+                                <li><a class="dropdown-item" href="{{ route('dashboard.my-books') }}"><i class="fas fa-book me-2 text-info" aria-hidden="true"></i> کتاب‌های من</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form action="{{ route('logout') }}" method="POST" class="d-inline w-100">
