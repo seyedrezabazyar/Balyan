@@ -637,7 +637,7 @@ class VerificationController extends Controller
 
             $request->session()->regenerate();
 
-            $redirectTo = $authData['redirect_to'] ?? '/dashboard';
+            $redirectTo = $authData['redirect_to'] ?? '/profile';
 
             Log::info('Authentication completed. Redirecting', [
                 'redirect_to' => $redirectTo

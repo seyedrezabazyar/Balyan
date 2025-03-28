@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('username', 50)->unique()->comment('شناسه منحصر به فرد برای ورود کاربر'); // این رو برگردوندیم
+            $table->string('username', 50)->unique()->comment('شناسه منحصر به فرد برای ورود کاربر');
+            $table->timestamp('username_changed_at')->nullable()->comment('زمان آخرین تغییر نام کاربری');
             $table->string('first_name', 100);
             $table->string('last_name', 100);
             $table->string('display_name', 200)->nullable()->comment('نام نمایشی سفارشی (اختیاری)');
@@ -26,6 +27,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->timestamp('last_login_at')->nullable();
+            $table->decimal('wallet_balance', 10, 2)->default(0)->comment('موجودی کیف پول کاربر');
         });
 
         // جدول sessions رو نگه می‌داریم (اگر از session های دیتابیسی استفاده می‌کنید)

@@ -50,7 +50,7 @@ class LoginController extends Controller
         ];
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
-            $redirectTo = $authData['redirect_to'] ?? '/dashboard';
+            $redirectTo = $authData['redirect_to'] ?? '/profile';
 
             session()->forget('auth_data');
 

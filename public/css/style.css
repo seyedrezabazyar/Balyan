@@ -507,7 +507,7 @@ img {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid var(--primary);
+    border: 1px solid #b1b1b1;
 }
 
 .user-avatar img {
@@ -525,7 +525,7 @@ img {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 3px solid var(--primary);
+    border: 2px solid var(--primary);
 }
 
 .user-avatar-lg img {
