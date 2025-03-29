@@ -20,7 +20,7 @@ class VerificationController extends Controller
     use SendsVerificationCodes, AuthSessionTrait;
 
     protected const VERIFICATION_CODE_LENGTH = 6;
-    protected const VERIFICATION_CODE_EXPIRY_MINUTES = 1;
+    protected const VERIFICATION_CODE_EXPIRY_MINUTES = 5;
     protected const RESEND_COOLDOWN_SECONDS = 60;
     protected const MAX_DAILY_CODES_PER_IDENTIFIER = 10;
     protected const SHOULD_MASK_CODES_IN_LOGS = true;
