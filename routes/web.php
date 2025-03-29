@@ -20,6 +20,11 @@ Route::prefix('auth')->middleware(['web', 'guest'])->group(function () {
     Route::post('/send-verification-code', [VerificationController::class, 'sendVerificationCode'])->name('auth.send-verification-code');
 });
 
+// مسیر مستقیم برای account-info (جدید - برای رفع مشکل 404)
+Route::get('/profile/account-info', [AccountInfoController::class, 'index'])
+    ->middleware(['auth'])
+    ->name('profile.direct-account-info');
+
 // مسیر نمایش پروفایل عمومی کاربر با نام کاربری - قابل دسترسی برای همه
 Route::get('/profile/{username}', [ProfileController::class, 'showPublicProfile'])->name('public.profile');
 
@@ -43,7 +48,7 @@ Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function
 
     // اطلاعات حساب کاربری - استفاده از کنترلر جدید AccountInfoController
     Route::get('/account-info', [AccountInfoController::class, 'index'])->name('account-info');
-    Route::post('/update-account-info', [AccountInfoController::class, 'update'])->name('update-account-info');
+    Route::post('/account-info', [AccountInfoController::class, 'update'])->name('update-account-info');
 
     // تغییر رمز عبور
     Route::get('/change-password', [ProfileController::class, 'changePassword'])->name('change-password');
@@ -70,7 +75,8 @@ Route::get('/', function () {
 // Static pages (Terms, Privacy, etc.) - Grouped for clarity
 Route::prefix('pages')->group(function () { // Added a prefix for better organization
     Route::get('/terms', function () {
-        return view('pages.terms');    })->name('terms');
+        return view('pages.terms');
+    })->name('terms');
 
     Route::get('/privacy', function () {
         return view('pages.privacy');
@@ -78,7 +84,9 @@ Route::prefix('pages')->group(function () { // Added a prefix for better organiz
 
     Route::get('/topics', function () {
         return view('pages.topics');
-    })->name('topics');    Route::get('/request-article', function () {
+    })->name('topics');
+
+    Route::get('/request-article', function () {
         return view('pages.request-article');
     })->name('request.article');
 
@@ -122,7 +130,6 @@ Route::prefix('pages')->group(function () { // Added a prefix for better organiz
         return view('pages.contact');
     })->name('contact');
 });
-
 
 // Search route
 Route::get('/search', function () {

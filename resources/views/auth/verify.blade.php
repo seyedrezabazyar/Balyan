@@ -52,17 +52,6 @@
                                 </div>
                             @endif
 
-                            @if(isset($dev_code) && $dev_code)
-                                <div class="alert alert-info custom-alert">
-                                    <div class="alert-icon">
-                                        <i class="fas fa-info-circle"></i>
-                                    </div>
-                                    <div class="alert-content">
-                                        <strong>کد تأیید برای محیط توسعه:</strong> {{ $dev_code }}
-                                    </div>
-                                </div>
-                            @endif
-
                             <p class="verify-subtitle">
                                 لطفاً هویت خود را برای
                                 @if($identifierType === 'phone')
@@ -183,7 +172,7 @@
                                                     <span id="countdown-timer">در حال بارگذاری...</span>
                                                 </div>
 
-                                                <div id="status-message" class="mt-2 text-sm"></div>
+                                                <div id="status-message" class="mt-2 text-sm d-none"></div>
 
                                                 <div class="resend-code-container mt-3 text-center{{ $codeExpired ? '' : ' d-none' }}" id="resend-container">
                                                     <button type="button" id="resend-code-btn" class="btn btn-link btn-resend-code"
@@ -196,7 +185,7 @@
                                                 </div>
 
                                                 @error('verification_code')
-                                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                                <div class="invalid-feedback d-none">{{ $message }}</div>
                                                 @enderror
 
                                                 @error('g-recaptcha-response')
@@ -247,11 +236,7 @@
                                             <span id="countdown-timer">در حال بارگذاری...</span>
                                         </div>
 
-                                        <div id="status-message" class="mt-2 text-sm {{ $codeExpired ? 'text-danger' : '' }}">
-                                            @if($codeExpired)
-                                                کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.
-                                            @endif
-                                        </div>
+                                        <div id="status-message" class="mt-2 text-sm d-none"></div>
 
                                         <div class="resend-code-container mt-3 text-center{{ $codeExpired ? '' : ' d-none' }}" id="resend-container">
                                             <button type="button" id="resend-code-btn" class="btn btn-link btn-resend-code"
@@ -264,7 +249,7 @@
                                         </div>
 
                                         @error('verification_code')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                        <div class="invalid-feedback d-none">{{ $message }}</div>
                                         @enderror
 
                                         @error('g-recaptcha-response')
@@ -396,29 +381,32 @@
                     }
                 }
 
-                const errorElements = document.querySelectorAll('.alert.alert-danger:not(.custom-alert), .invalid-feedback:not(.d-none)');
-
+                const errorElements = document.querySelectorAll('.alert.alert-danger:not(.custom-alert), .invalid-feedback');
                 if (errorElements.length > 0) {
                     let foundInvalidCode = false;
                     let foundAccountError = false;
 
                     errorElements.forEach(element => {
                         const errorText = element.textContent || '';
-                        element.style.display = 'none';
 
-                        if (!foundInvalidCode && (
-                            errorText.includes('کد تأیید') ||
+                        // پنهان کردن خطاهای مربوط به کد تایید
+                        if (errorText.includes('کد تأیید') ||
                             errorText.includes('کد وارد شده') ||
                             errorText.includes('کد اشتباه') ||
-                            errorText.includes('verification_code')
-                        )) {
-                            showAlert('کد تأیید وارد شده صحیح نیست یا منقضی شده است.', 'danger');
-                            foundInvalidCode = true;
+                            errorText.includes('verification_code')) {
+
+                            element.classList.add('d-none');
+
+                            if (!foundInvalidCode) {
+                                showAlert('کد تأیید وارد شده صحیح نیست یا منقضی شده است.', 'danger');
+                                foundInvalidCode = true;
+                            }
                         }
                         else if (!foundAccountError && (
                             errorText.includes('ایجاد حساب') ||
                             errorText.includes('account creation')
                         )) {
+                            element.classList.add('d-none');
                             showAlert('خطا در ایجاد حساب کاربری. لطفاً دوباره تلاش کنید.', 'danger');
                             foundAccountError = true;
                         }
@@ -475,12 +463,37 @@
             function showAlert(message, type = 'danger') {
                 if (!message) return;
 
+                // نمایش پیام فقط در بالای صفحه
+                // پاک کردن موارد دیگر
+                if (statusMessage) {
+                    statusMessage.textContent = '';
+                    statusMessage.classList.add('d-none');
+                }
+
+                // پنهان کردن همه پیام‌های خطای مربوط به فیلد تایید
+                document.querySelectorAll('.invalid-feedback').forEach(element => {
+                    if (element.textContent.includes('کد تأیید') ||
+                        element.textContent.includes('کد وارد شده') ||
+                        element.textContent.includes('verification_code')) {
+                        element.classList.add('d-none');
+                    }
+                });
+
                 const iconClass = {
                     'success': 'fa-check-circle',
                     'danger': 'fa-exclamation-circle',
                     'warning': 'fa-exclamation-triangle',
                     'info': 'fa-info-circle'
                 };
+
+                // بررسی وجود آلرت مشابه
+                const existingAlerts = document.querySelectorAll('.custom-alert');
+                for (let i = 0; i < existingAlerts.length; i++) {
+                    const alertContent = existingAlerts[i].querySelector('.alert-content');
+                    if (alertContent && alertContent.textContent.trim() === message.trim()) {
+                        return; // از افزودن آلرت تکراری جلوگیری می‌کند
+                    }
+                }
 
                 const alertHTML = `
                     <div class="alert alert-${type} custom-alert mb-4" role="alert">
@@ -493,16 +506,16 @@
                     </div>
                 `;
 
+                // افزودن آلرت به بخش هدر
+                const verifyHeader = document.querySelector('.verify-header');
+                if (verifyHeader) {
+                    verifyHeader.insertAdjacentHTML('beforeend', alertHTML);
+                    return;
+                }
+
+                // جایگزین اگر هدر وجود نداشت
                 const form = document.querySelector('.code-form');
                 if (form) {
-                    const existingAlerts = form.parentElement.querySelectorAll('.custom-alert');
-                    for (let i = 0; i < existingAlerts.length; i++) {
-                        const alertContent = existingAlerts[i].querySelector('.alert-content');
-                        if (alertContent && alertContent.textContent.trim() === message.trim()) {
-                            return;
-                        }
-                    }
-
                     form.insertAdjacentHTML('beforebegin', alertHTML);
                 } else {
                     const container = document.querySelector('.auth-container, .container, main');
@@ -650,44 +663,13 @@
                     this.startTimer();
                 }
 
-                startTimer() {
-                    if (this.interval) {
-                        clearInterval(this.interval);
-                    }
-
-                    this.interval = setInterval(() => {
-                        this.updateCountdown();
-                    }, 1000);
-                }
-
-                updateCountdown() {
-                    const now = new Date().getTime();
-                    const timeLeft = this.expiresAt - now;
-
-                    if (timeLeft <= 0) {
-                        clearInterval(this.interval);
-                        this.showExpiredMessage();
-                        this.enableResendButton();
-                        return;
-                    }
-
-                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-                    if (countdownElement) {
-                        countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} مانده تا انقضای کد`;
-                    }
-                    this.disableResendButton();
-                }
-
                 showExpiredMessage() {
                     if (countdownElement) {
                         countdownElement.textContent = '00:00 مانده تا انقضای کد';
                     }
-                    if (statusMessage) {
-                        statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
-                        statusMessage.className = 'mt-2 text-sm text-danger';
-                    }
+
+                    // نمایش پیام فقط در بالای صفحه
+                    showAlert('کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.', 'danger');
 
                     if (codeExpiredElement) {
                         codeExpiredElement.value = 'true';
@@ -715,13 +697,33 @@
                     }
                 }
 
+                updateCountdown() {
+                    const now = new Date().getTime();
+                    const timeLeft = this.expiresAt - now;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(this.interval);
+                        this.showExpiredMessage();
+                        this.enableResendButton();
+                        return;
+                    }
+
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                    if (countdownElement) {
+                        countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} مانده تا انقضای کد`;
+                    }
+                    this.disableResendButton();
+                }
+
                 resetTimer(newExpiresAt) {
                     clearInterval(this.interval);
                     this.expiresAt = newExpiresAt;
 
                     if (statusMessage) {
                         statusMessage.textContent = '';
-                        statusMessage.className = 'mt-2 text-sm';
+                        statusMessage.classList.add('d-none');
                     }
 
                     if (codeExpiredElement) {
@@ -730,6 +732,16 @@
 
                     this.updateCountdown();
                     this.startTimer();
+                }
+
+                startTimer() {
+                    if (this.interval) {
+                        clearInterval(this.interval);
+                    }
+
+                    this.interval = setInterval(() => {
+                        this.updateCountdown();
+                    }, 1000);
                 }
             }
 
@@ -837,10 +849,6 @@
                     }, this, function(data) {
                         showAlert(data.message, 'success');
 
-                        if (data.dev_code) {
-                            showAlert(`<strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}`, 'info');
-                        }
-
                         if (expiresAtElement) {
                             expiresAtElement.value = data.expires_at;
                         }
@@ -892,10 +900,6 @@
                     }, this, function(data) {
                         showAlert(data.message, 'success');
 
-                        if (data.dev_code) {
-                            showAlert(`<strong>کد تأیید برای محیط توسعه:</strong> ${data.dev_code}`, 'info');
-                        }
-
                         if (expiresAtElement) {
                             expiresAtElement.value = data.expiresAt || data.expires_at;
                         }
@@ -906,7 +910,7 @@
 
                         if (statusMessage) {
                             statusMessage.textContent = '';
-                            statusMessage.className = 'mt-2 text-sm';
+                            statusMessage.classList.add('d-none');
                         }
 
                         if (window.verificationTimer) {
@@ -1009,9 +1013,17 @@
                         if (countdownElement) {
                             countdownElement.textContent = '00:00 مانده تا انقضای کد';
                         }
+
+                        // نمایش پیام فقط در قسمت بالا
+                        const existingAlerts = document.querySelectorAll('.alert.alert-danger.custom-alert');
+                        if (existingAlerts.length === 0) {
+                            showAlert('کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.', 'danger');
+                        }
+
+                        // پنهان کردن پیام وضعیت
                         if (statusMessage) {
-                            statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
-                            statusMessage.className = 'mt-2 text-sm text-danger';
+                            statusMessage.textContent = '';
+                            statusMessage.classList.add('d-none');
                         }
 
                         if (resendContainer) {
@@ -1034,9 +1046,17 @@
                     if (countdownElement) {
                         countdownElement.textContent = '00:00 مانده تا انقضای کد';
                     }
+
+                    // نمایش پیام فقط در قسمت بالا
+                    const existingAlerts = document.querySelectorAll('.alert.alert-danger.custom-alert');
+                    if (existingAlerts.length === 0) {
+                        showAlert('کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.', 'danger');
+                    }
+
+                    // پنهان کردن پیام وضعیت
                     if (statusMessage) {
-                        statusMessage.textContent = 'کد تأیید منقضی شده است. لطفاً کد جدید درخواست کنید.';
-                        statusMessage.className = 'mt-2 text-sm text-danger';
+                        statusMessage.textContent = '';
+                        statusMessage.classList.add('d-none');
                     }
 
                     if (resendContainer) {

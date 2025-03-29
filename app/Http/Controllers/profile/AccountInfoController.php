@@ -19,7 +19,15 @@ class AccountInfoController extends Controller
      */
     public function index()
     {
+        // بررسی وضعیت احراز هویت کاربر
+        if (!Auth::check()) {
+            return redirect()->route('login')->with('error', 'شما باید وارد حساب کاربری خود شوید');
+        }
+
         $user = Auth::user();
+
+        // لاگ کردن برای دیباگ
+        Log::info('AccountInfo page accessed by user: ' . $user->id);
 
         // محاسبه درصد تکمیل پروفایل
         $profileCompletionPercentage = $this->calculateProfileCompletion($user);

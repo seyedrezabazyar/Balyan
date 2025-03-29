@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'ویرایش اطلاعات کاربری - کتابخانه دیجیتال بالیان')
+@section('title', 'ویرایش اطلاعات کاربری - کتابخانه دیجیتال بلیان')
 
 @section('content')
     <div class="profile-container">
@@ -273,6 +273,62 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // پیش‌نمایش تصویر پروفایل
+            const profileImageInput = document.getElementById('profile_image');
+            const avatarEditBtn = document.querySelector('.avatar-edit-btn');
+
+            if (avatarEditBtn && profileImageInput) {
+                avatarEditBtn.addEventListener('click', function() {
+                    profileImageInput.click();
+                });
+            }
+
+            if (profileImageInput) {
+                profileImageInput.addEventListener('change', function() {
+                    if (this.files && this.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const defaultAvatar = document.querySelector('.default-avatar');
+                            const userAvatar = document.querySelector('.user-avatar-img');
+
+                            if (userAvatar) {
+                                userAvatar.src = e.target.result;
+                            } else if (defaultAvatar) {
+                                defaultAvatar.style.display = 'none';
+
+                                const avatarImg = document.createElement('img');
+                                avatarImg.src = e.target.result;
+                                avatarImg.className = 'user-avatar-img';
+
+                                const profileAvatar = document.querySelector('.profile-avatar');
+                                profileAvatar.appendChild(avatarImg);
+                            }
+                        }
+                        reader.readAsDataURL(this.files[0]);
+                    }
+                });
+            }
+
+            // حذف خودکار پیام‌های موفقیت
+            const alerts = document.querySelectorAll('.alert-success');
+            if (alerts.length > 0) {
+                setTimeout(() => {
+                    alerts.forEach(alert => {
+                        alert.style.opacity = '0';
+                        alert.style.transition = 'opacity 0.5s';
+                        setTimeout(() => {
+                            alert.style.display = 'none';
+                        }, 500);
+                    });
+                }, 5000);
+            }
+        });
+    </script>
+@endpush
 
 @push('styles')
     <style>
@@ -624,60 +680,4 @@
             }
         }
     </style>
-@endpush
-
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // پیش‌نمایش تصویر پروفایل
-            const profileImageInput = document.getElementById('profile_image');
-            const avatarEditBtn = document.querySelector('.avatar-edit-btn');
-
-            if (avatarEditBtn && profileImageInput) {
-                avatarEditBtn.addEventListener('click', function() {
-                    profileImageInput.click();
-                });
-            }
-
-            if (profileImageInput) {
-                profileImageInput.addEventListener('change', function() {
-                    if (this.files && this.files[0]) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const defaultAvatar = document.querySelector('.default-avatar');
-                            const userAvatar = document.querySelector('.user-avatar-img');
-
-                            if (userAvatar) {
-                                userAvatar.src = e.target.result;
-                            } else if (defaultAvatar) {
-                                defaultAvatar.style.display = 'none';
-
-                                const avatarImg = document.createElement('img');
-                                avatarImg.src = e.target.result;
-                                avatarImg.className = 'user-avatar-img';
-
-                                const profileAvatar = document.querySelector('.profile-avatar');
-                                profileAvatar.appendChild(avatarImg);
-                            }
-                        }
-                        reader.readAsDataURL(this.files[0]);
-                    }
-                });
-            }
-
-            // حذف خودکار پیام‌های موفقیت
-            const alerts = document.querySelectorAll('.alert-success');
-            if (alerts.length > 0) {
-                setTimeout(() => {
-                    alerts.forEach(alert => {
-                        alert.style.opacity = '0';
-                        alert.style.transition = 'opacity 0.5s';
-                        setTimeout(() => {
-                            alert.style.display = 'none';
-                        }, 500);
-                    });
-                }, 5000);
-            }
-        });
-    </script>
 @endpush
