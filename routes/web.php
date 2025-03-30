@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\IdentifierController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\VerificationController;
@@ -68,9 +69,7 @@ Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function
 // General routes (accessible to everyone)
 
 // Home page
-Route::get('/', function () {
-    return view('home');
-})->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Static pages (Terms, Privacy, etc.) - Grouped for clarity
 Route::prefix('pages')->group(function () { // Added a prefix for better organization
