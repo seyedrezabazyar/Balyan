@@ -126,6 +126,26 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user can change their email.
+     *
+     * @return bool
+     */
+    public function canChangeEmail(): bool
+    {
+        return is_null($this->email_verified_at);
+    }
+
+    /**
+     * Check if the user can change their phone.
+     *
+     * @return bool
+     */
+    public function canChangePhone(): bool
+    {
+        return is_null($this->phone_verified_at);
+    }
+
+    /**
      * Get the profile image URL.
      *
      * @return string

@@ -9,7 +9,29 @@ class BookDescription extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'book_descriptions';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'book_md5',
+        'language',
+        'title',
+        'description',
+        'toc',
+        'subject',
+        'publisher',
+        'created_at',
+        'updated_at'
+    ];
 
     /**
      * کتاب مرتبط با این توضیحات

@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Traits\AuthSessionTrait;
+use App\Traits\AuthUtils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
-    use AuthSessionTrait;
+    use AuthUtils;
 
     /**
      * نمایش فرم ورود
@@ -52,12 +50,22 @@ class LoginController extends Controller
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $redirectTo = $authData['redirect_to'] ?? '/profile';
 
-            session()->forget('auth_data');
+            $user = Auth::user();
+            Log::info('کاربر با رمز عبور وارد شد', [
+                'user_id' => $user->id,
+                'identifier_type' => $identifierType,
+            ]);
 
+            session()->forget('auth_data');
             $request->session()->regenerate();
 
             return redirect($redirectTo);
         }
+
+        Log::warning('تلاش ناموفق برای ورود با رمز عبور', [
+            'identifier' => $this->maskSensitiveData($identifier),
+            'identifier_type' => $identifierType,
+        ]);
 
         throw ValidationException::withMessages([
             'password' => ['رمز عبور وارد شده صحیح نیست.'],
@@ -69,10 +77,14 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
+        $userId = Auth::id();
+
         Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        Log::info('کاربر از حساب خود خارج شد', ['user_id' => $userId]);
 
         return redirect('/');
     }

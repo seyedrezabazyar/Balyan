@@ -7,9 +7,12 @@ use Illuminate\Support\Facades\Log;
 use Kavenegar\KavenegarApi;
 use Kavenegar\Exceptions\ApiException;
 use Kavenegar\Exceptions\HttpException;
+use App\Traits\AuthUtils;
 
 class KavenegarSmsService implements SmsServiceInterface
 {
+    use AuthUtils;
+
     protected $api;
 
     public function __construct()
@@ -30,11 +33,11 @@ class KavenegarSmsService implements SmsServiceInterface
             $sender = config('services.kavenegar.sender');
             $this->api->Send($sender, $phoneNumber, $message);
 
-            Log::info("SMS sent successfully", ['phone' => $phoneNumber]);
+            Log::info("پیامک با موفقیت ارسال شد", ['phone' => $this->maskSensitiveData($phoneNumber)]);
             return true;
         } catch (ApiException | HttpException $e) {
-            Log::error("SMS sending error: " . $e->getMessage(), [
-                'phone' => $phoneNumber,
+            Log::error("خطا در ارسال پیامک: " . $e->getMessage(), [
+                'phone' => $this->maskSensitiveData($phoneNumber),
                 'exception' => $e
             ]);
             return false;
@@ -54,11 +57,11 @@ class KavenegarSmsService implements SmsServiceInterface
             $template = config('services.kavenegar.verification_template', 'verify');
             $this->api->VerifyLookup($phoneNumber, $code, null, null, $template);
 
-            Log::info("Verification code sent", ['phone' => $phoneNumber]);
+            Log::info("کد تأیید ارسال شد", ['phone' => $this->maskSensitiveData($phoneNumber)]);
             return true;
         } catch (ApiException | HttpException $e) {
-            Log::error("Verification code sending error: " . $e->getMessage(), [
-                'phone' => $phoneNumber,
+            Log::error("خطا در ارسال کد تأیید: " . $e->getMessage(), [
+                'phone' => $this->maskSensitiveData($phoneNumber),
                 'exception' => $e
             ]);
             return false;

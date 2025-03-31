@@ -31,11 +31,31 @@ class Book extends Model
         'access_level_id',
         'is_visible',
         'view_count',
-        'download_count'
+        'download_count',
+        'is_favorite',
+        'reading_progress'
     ];
 
     /**
-     * ارتباط با کاربر مالک کتاب (در صورت نیاز)
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'year_numeric' => 'integer',
+        'pages_numeric' => 'integer',
+        'filesize' => 'integer',
+        'price' => 'float',
+        'access_level_id' => 'integer',
+        'is_visible' => 'boolean',
+        'view_count' => 'integer',
+        'download_count' => 'integer',
+        'is_favorite' => 'boolean',
+        'reading_progress' => 'integer'
+    ];
+
+    /**
+     * ارتباط با کاربر مالک کتاب
      */
     public function user()
     {

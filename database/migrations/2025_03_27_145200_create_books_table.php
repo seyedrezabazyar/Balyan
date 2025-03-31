@@ -12,8 +12,10 @@ return new class extends Migration
 
         Schema::create('books', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->char('mongo_id', 24);
             $table->char('md5', 32)->unique()->index();
+            $table->string('title', 1000)->nullable();
             $table->string('identifier', 300)->nullable();
             $table->char('extension', 7);
             $table->string('language_code', 10)->nullable()->index();
@@ -25,12 +27,15 @@ return new class extends Migration
             $table->smallInteger('year_numeric')->nullable()->index()->comment('Generated from year');
             $table->string('pages', 100)->nullable();
             $table->integer('pages_numeric')->nullable()->comment('Generated from pages');
+            $table->text('description')->nullable();
             $table->bigInteger('filesize')->nullable();
             $table->string('ipfs_cid', 100)->nullable();
             $table->string('coverurl', 200)->nullable();
             $table->decimal('price', 12, 2)->default(0);
             $table->integer('access_level_id')->default(1)->comment('Minimum level required to access this book');
             $table->boolean('is_visible')->default(true);
+            $table->boolean('is_favorite')->default(false);
+            $table->integer('reading_progress')->default(0);
             $table->timestamps();
             $table->integer('view_count')->default(0);
             $table->integer('download_count')->default(0);

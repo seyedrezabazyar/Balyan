@@ -120,6 +120,22 @@
                             </div>
                         @endif
 
+                        <!-- محدودیت تغییر ایمیل و شماره تلفن تایید شده -->
+                        @if(!$canChangeEmail && $user->email || !$canChangePhone && $user->phone)
+                            <div class="verification-restriction-notice mt-3">
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    @if(!$canChangeEmail && !$canChangePhone)
+                                        ایمیل و شماره تلفن تایید شده قابل تغییر نیستند.
+                                    @elseif(!$canChangeEmail)
+                                        ایمیل تایید شده قابل تغییر نیست.
+                                    @elseif(!$canChangePhone)
+                                        شماره تلفن تایید شده قابل تغییر نیست.
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+
                         <!-- راهنمای تکمیل پروفایل -->
                         <div class="profile-guideline mt-4">
                             <div class="guideline-title">
@@ -221,14 +237,27 @@
                                                 @else
                                                     <span class="text-warning">[توصیه شده]</span>
                                                 @endif
+                                                @if(!$canChangeEmail && $user->email)
+                                                    <span class="badge bg-success">تایید شده</span>
+                                                @endif
                                             </label>
                                             <input type="email" name="email" id="email" class="form-control"
                                                    value="{{ $user->email }}" placeholder="مثال: example@gmail.com"
-                                                {{ !$user->phone ? 'required' : '' }}>
+                                                {{ !$user->phone ? 'required' : '' }}
+                                                {{ !$canChangeEmail && $user->email ? 'readonly' : '' }}>
                                             @if(!$user->email)
                                                 <div class="missing-field">
                                                     <i class="fas fa-exclamation-circle"></i> برای دریافت خبرنامه و پیشنهادات ویژه
                                                 </div>
+                                            @elseif($canChangeEmail)
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i> تغییر ایمیل نیاز به تایید مجدد خواهد داشت.
+                                                </small>
+                                            @endif
+                                            @if(!$canChangeEmail && $user->email)
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-lock me-1"></i> ایمیل تایید شده قابل تغییر نیست.
+                                                </small>
                                             @endif
                                         </div>
                                     </div>
@@ -243,10 +272,14 @@
                                                 @else
                                                     <span class="text-warning">[توصیه شده]</span>
                                                 @endif
+                                                @if(!$canChangePhone && $user->phone)
+                                                    <span class="badge bg-success">تایید شده</span>
+                                                @endif
                                             </label>
                                             <input type="tel" name="phone" id="phone" class="form-control"
                                                    value="{{ ltrim($user->phone, '+98') }}" placeholder="09123456789"
-                                                {{ !$user->email ? 'required' : '' }}>
+                                                {{ !$user->email ? 'required' : '' }}
+                                                {{ !$canChangePhone && $user->phone ? 'readonly' : '' }}>
                                             <small class="form-text text-muted">
                                                 شماره را با فرمت 09123456789 وارد کنید
                                             </small>
@@ -254,6 +287,14 @@
                                                 <div class="missing-field">
                                                     <i class="fas fa-exclamation-circle"></i> برای دریافت کد تخفیف پیامکی
                                                 </div>
+                                            @elseif(!$canChangePhone && $user->phone)
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-lock me-1"></i> شماره تلفن تایید شده قابل تغییر نیست.
+                                                </small>
+                                            @elseif($canChangePhone)
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i> تغییر شماره تلفن نیاز به تایید مجدد خواهد داشت.
+                                                </small>
                                             @endif
                                         </div>
                                     </div>

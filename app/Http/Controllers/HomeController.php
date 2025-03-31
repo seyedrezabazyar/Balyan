@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
+    /**
+     * نمایش صفحه اصلی سایت
+     */
     public function index()
     {
         // دریافت کتاب‌های پرفروش (بر اساس تعداد دانلود)

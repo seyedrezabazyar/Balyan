@@ -35,6 +35,10 @@ class AccountInfoController extends Controller
         // بررسی محدودیت تغییر نام کاربری
         $canChangeUsername = $this->canChangeUsername($user);
 
+        // بررسی امکان تغییر ایمیل و شماره تلفن
+        $canChangeEmail = !$user->email_verified_at;
+        $canChangePhone = !$user->phone_verified_at;
+
         // زمان باقی‌مانده تا امکان تغییر مجدد نام کاربری (گرد شده به عدد صحیح)
         $daysUntilUsernameChange = (int)$this->daysUntilUsernameChange($user);
 
@@ -42,6 +46,8 @@ class AccountInfoController extends Controller
             'user' => $user,
             'profileCompletionPercentage' => $profileCompletionPercentage,
             'canChangeUsername' => $canChangeUsername,
+            'canChangeEmail' => $canChangeEmail,
+            'canChangePhone' => $canChangePhone,
             'daysUntilUsernameChange' => $daysUntilUsernameChange
         ]);
     }
@@ -59,12 +65,21 @@ class AccountInfoController extends Controller
         // بررسی محدودیت تغییر نام کاربری
         $canChangeUsername = $this->canChangeUsername($user);
 
+        // بررسی امکان تغییر ایمیل و شماره تلفن
+        $canChangeEmail = !$user->email_verified_at;
+        $canChangePhone = !$user->phone_verified_at;
+
         // قوانین اعتبارسنجی پایه
         $rules = [
             'display_name' => 'nullable|string|max:200',
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => [
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+        ];
+
+        // اضافه کردن قوانین ایمیل اگر کاربر مجاز به تغییر آن باشد
+        if ($canChangeEmail) {
+            $rules['email'] = [
                 Rule::requiredIf(function () use ($user, $request) {
                     return !$request->filled('phone') && !$user->phone;
                 }),
@@ -72,8 +87,12 @@ class AccountInfoController extends Controller
                 'email',
                 'max:255',
                 Rule::unique('users')->ignore($user->id),
-            ],
-            'phone' => [
+            ];
+        }
+
+        // اضافه کردن قوانین شماره تلفن اگر کاربر مجاز به تغییر آن باشد
+        if ($canChangePhone) {
+            $rules['phone'] = [
                 Rule::requiredIf(function () use ($user, $request) {
                     return !$request->filled('email') && !$user->email;
                 }),
@@ -81,9 +100,8 @@ class AccountInfoController extends Controller
                 'string',
                 'regex:/^0[0-9]{10}$/', // شماره 11 رقمی با صفر ابتدا
                 Rule::unique('users')->ignore($user->id),
-            ],
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ];
+            ];
+        }
 
         // اضافه کردن قوانین نام کاربری اگر کاربر مجاز به تغییر آن باشد
         if ($canChangeUsername) {
@@ -147,13 +165,17 @@ class AccountInfoController extends Controller
             Log::info('Basic user info updated');
 
             // بررسی ایمیل
-            if ($request->filled('email')) {
+            if ($canChangeEmail && $request->filled('email') && $request->input('email') !== $user->email) {
                 $user->email = $request->input('email');
+                $user->email_verified_at = null; // حذف تاریخ تایید ایمیل برای ایمیل جدید
                 Log::info('User email updated to: ' . $request->input('email'));
+            } elseif (!$canChangeEmail && $request->filled('email') && $request->input('email') !== $user->email) {
+                // اگر کاربر مجاز به تغییر ایمیل نباشد و ایمیل را تغییر داده باشد
+                return redirect()->back()->with('error', "امکان تغییر ایمیل وجود ندارد. ایمیل شما قبلاً تایید شده است.")->withInput();
             }
 
             // بررسی و استانداردسازی شماره تماس
-            if ($request->filled('phone')) {
+            if ($canChangePhone && $request->filled('phone')) {
                 $phone = $request->input('phone');
 
                 // حذف کاراکترهای اضافی و فرمت‌بندی
@@ -162,18 +184,22 @@ class AccountInfoController extends Controller
                 // اگر با +98 یا 98 شروع شده، آن را به 0 تبدیل می‌کنیم
                 if (substr($phone, 0, 3) === '989' || substr($phone, 0, 2) === '98') {
                     $phone = '0' . substr($phone, -10);
-                }
-                // اگر با 9 شروع شده و 10 رقم است، 0 به ابتدای آن اضافه می‌کنیم
+                } // اگر با 9 شروع شده و 10 رقم است، 0 به ابتدای آن اضافه می‌کنیم
                 elseif (substr($phone, 0, 1) === '9' && strlen($phone) === 10) {
                     $phone = '0' . $phone;
-                }
-                // اگر طول شماره کمتر از 11 است یا با 0 شروع نمی‌شود، خطا می‌دهیم
+                } // اگر طول شماره کمتر از 11 است یا با 0 شروع نمی‌شود، خطا می‌دهیم
                 elseif (strlen($phone) !== 11 || substr($phone, 0, 1) !== '0') {
                     return redirect()->back()->withErrors(['phone' => 'فرمت شماره تلفن صحیح نیست. شماره باید 11 رقم و با صفر شروع شود (مانند 09123456789).'])->withInput();
                 }
 
-                $user->phone = $phone;
-                Log::info('User phone updated to: ' . $phone);
+                if ($phone !== $user->phone) {
+                    $user->phone = $phone;
+                    $user->phone_verified_at = null; // حذف تاریخ تایید شماره تلفن برای شماره جدید
+                    Log::info('User phone updated to: ' . $phone);
+                }
+            } elseif (!$canChangePhone && $request->filled('phone') && $request->input('phone') !== $user->phone) {
+                // اگر کاربر مجاز به تغییر شماره تلفن نباشد و شماره تلفن را تغییر داده باشد
+                return redirect()->back()->with('error', "امکان تغییر شماره تلفن وجود ندارد. شماره تلفن شما قبلاً تایید شده است.")->withInput();
             }
 
             // بررسی آپلود تصویر
