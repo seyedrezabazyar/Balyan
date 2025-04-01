@@ -169,6 +169,9 @@ class VerificationController extends Controller
 
     /**
      * ارسال مجدد کد تأیید
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function resendVerificationCode(Request $request)
     {
@@ -191,77 +194,21 @@ class VerificationController extends Controller
             ], 403);
         }
 
-        // بررسی محدودیت روزانه
-        $dailyCount = VerificationCode::where('identifier', $identifier)
-            ->where('type', $identifierType)
-            ->whereDate('created_at', today())
-            ->count();
+        // استفاده از سرویس برای پردازش درخواست کد تأیید
+        $result = $this->authService->processVerificationRequest(
+            $identifier,
+            $identifierType,
+            self::VERIFICATION_CODE_LENGTH,
+            self::VERIFICATION_CODE_EXPIRY_MINUTES,
+            self::RESEND_COOLDOWN_SECONDS,
+            self::MAX_DAILY_CODES_PER_IDENTIFIER
+        );
 
-        if ($dailyCount >= self::MAX_DAILY_CODES_PER_IDENTIFIER) {
-            return response()->json([
-                'success' => false,
-                'message' => "شما به حداکثر تعداد مجاز ارسال کد در روز رسیده‌اید. لطفاً فردا دوباره تلاش کنید.",
-                'daily_limit_reached' => true,
-                'wait_seconds' => 24 * 60 * 60
-            ], 429);
-        }
-
-        // بررسی محدودیت زمانی
-        $canSend = VerificationCode::canSendNew($identifier, $identifierType, self::RESEND_COOLDOWN_SECONDS);
-
-        if ($canSend !== true) {
-            $waitSeconds = is_array($canSend) && isset($canSend['remaining_seconds']) ?
-                $canSend['remaining_seconds'] :
-                (is_numeric($canSend) ? $canSend : self::RESEND_COOLDOWN_SECONDS);
-
-            $message = is_array($canSend) && isset($canSend['message']) ?
-                $canSend['message'] :
-                "به دلیل محدودیت ارسال، لطفاً {$waitSeconds} ثانیه دیگر مجدداً تلاش کنید.";
-
-            return response()->json([
-                'success' => false,
-                'message' => $message,
-                'wait_seconds' => $waitSeconds
-            ], 429);
-        }
-
-        // ارسال کد تأیید
-        try {
-            DB::beginTransaction();
-
-            $verificationCode = VerificationCode::generateFor(
-                $identifier,
-                $identifierType,
-                self::VERIFICATION_CODE_LENGTH,
-                self::VERIFICATION_CODE_EXPIRY_MINUTES
-            );
-
-            $sendResult = VerificationCode::sendCode($identifier, $identifierType, $verificationCode->code);
-
-            DB::commit();
-
-            if (!$sendResult) {
-                throw new \Exception('خطا در ارسال کد تأیید');
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $identifierType === 'email'
-                    ? 'کد تأیید به ایمیل شما ارسال شد.'
-                    : 'کد تأیید به شماره موبایل شما ارسال شد.',
-                'expires_at' => $verificationCode->expires_at->timestamp * 1000,
-                'code_expiry_minutes' => self::VERIFICATION_CODE_EXPIRY_MINUTES,
-                'dev_code' => (app()->environment('local', 'development') && self::DEV_MODE_SHOW_CODES) ? $verificationCode->code : null
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("خطا در ارسال کد تأیید: " . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.'
-            ], 500);
-        }
+        // حذف کلیدهایی که در پاسخ API نیازی به آنها نیست
+        return response()->json(
+            array_diff_key($result, ['status' => null, 'verification_code' => null]),
+            $result['status'] ?? 200
+        );
     }
 
     /**
@@ -361,6 +308,9 @@ class VerificationController extends Controller
 
     /**
      * تأیید مجدد ایمیل یا شماره تلفن کاربر
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function requestVerification(Request $request)
     {
@@ -390,6 +340,7 @@ class VerificationController extends Controller
             ], 400);
         }
 
+        // اطلاعاتی که می‌خواهیم در نشست ذخیره کنیم
         $sessionData = [
             'auth_identifier' => $identifier,
             'auth_identifier_type' => $identifierType,
@@ -399,79 +350,24 @@ class VerificationController extends Controller
             'created_at' => now(),
         ];
 
-        session()->put('verification_data', encrypt($sessionData));
+        // استفاده از سرویس برای پردازش درخواست کد تأیید
+        $result = $this->authService->processVerificationRequest(
+            $identifier,
+            $identifierType,
+            self::VERIFICATION_CODE_LENGTH,
+            self::VERIFICATION_CODE_EXPIRY_MINUTES,
+            self::RESEND_COOLDOWN_SECONDS,
+            self::MAX_DAILY_CODES_PER_IDENTIFIER,
+            true,
+            $sessionData,
+            'verification_data'
+        );
 
-        // ارسال کد
-        try {
-            // بررسی محدودیت روزانه
-            $dailyCount = VerificationCode::where('identifier', $identifier)
-                ->where('type', $identifierType)
-                ->whereDate('created_at', today())
-                ->count();
-
-            if ($dailyCount >= self::MAX_DAILY_CODES_PER_IDENTIFIER) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "شما به حداکثر تعداد مجاز ارسال کد در روز رسیده‌اید. لطفاً فردا دوباره تلاش کنید.",
-                    'daily_limit_reached' => true,
-                    'wait_seconds' => 24 * 60 * 60
-                ], 429);
-            }
-
-            // بررسی محدودیت زمانی
-            $canSend = VerificationCode::canSendNew($identifier, $identifierType, self::RESEND_COOLDOWN_SECONDS);
-
-            if ($canSend !== true) {
-                $waitSeconds = is_array($canSend) && isset($canSend['remaining_seconds']) ?
-                    $canSend['remaining_seconds'] :
-                    (is_numeric($canSend) ? $canSend : self::RESEND_COOLDOWN_SECONDS);
-
-                $message = is_array($canSend) && isset($canSend['message']) ?
-                    $canSend['message'] :
-                    "به دلیل محدودیت ارسال، لطفاً {$waitSeconds} ثانیه دیگر مجدداً تلاش کنید.";
-
-                return response()->json([
-                    'success' => false,
-                    'message' => $message,
-                    'wait_seconds' => $waitSeconds
-                ], 429);
-            }
-
-            DB::beginTransaction();
-
-            $verificationCode = VerificationCode::generateFor(
-                $identifier,
-                $identifierType,
-                self::VERIFICATION_CODE_LENGTH,
-                self::VERIFICATION_CODE_EXPIRY_MINUTES
-            );
-
-            $sendResult = VerificationCode::sendCode($identifier, $identifierType, $verificationCode->code);
-
-            DB::commit();
-
-            if (!$sendResult) {
-                throw new \Exception('خطا در ارسال کد تأیید');
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $identifierType === 'email'
-                    ? 'کد تأیید به ایمیل شما ارسال شد.'
-                    : 'کد تأیید به شماره موبایل شما ارسال شد.',
-                'expires_at' => $verificationCode->expires_at->timestamp * 1000,
-                'code_expiry_minutes' => self::VERIFICATION_CODE_EXPIRY_MINUTES,
-                'dev_code' => (app()->environment('local', 'development') && self::DEV_MODE_SHOW_CODES) ? $verificationCode->code : null
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("خطا در ارسال کد تأیید: " . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.'
-            ], 500);
-        }
+        // حذف کلیدهایی که در پاسخ API نیازی به آنها نیست
+        return response()->json(
+            array_diff_key($result, ['status' => null, 'verification_code' => null]),
+            $result['status'] ?? 200
+        );
     }
 
     /**

@@ -4,36 +4,39 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\IdentifierController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\VerificationController;
-use App\Http\Controllers\profile\ProfileController;
-use App\Http\Controllers\profile\AccountInfoController;
+use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Controllers\Profile\AccountInfoController;
 use Illuminate\Support\Facades\Route;
 
-// Authentication routes accessible only to guests
-Route::prefix('auth')->middleware(['web', 'guest'])->group(function () {
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/identify', [IdentifierController::class, 'identify'])->name('auth.identify');
-    Route::get('/verify', [VerificationController::class, 'showVerificationForm'])->name('auth.verify-form');
-    Route::post('/resend-code', [VerificationController::class, 'resendVerificationCode'])->name('auth.resend-code');
-    Route::post('/verify-code', [VerificationController::class, 'verifyCode'])->name('auth.verify-code');
-    Route::post('/login-password', [LoginController::class, 'loginWithPassword'])->name('auth.login-password');
+// مسیر ورود مستقیم قابل دسترسی برای همه
+Route::get('/login', [LoginController::class, 'showLoginForm'])
+    ->name('login')
+    ->middleware('guest');
 
-    // اضافه کردن مسیر جدید برای ارسال کد تأیید
-    Route::post('/send-verification-code', [VerificationController::class, 'sendVerificationCode'])->name('auth.send-verification-code');
+// مسیرهای احراز هویت - فقط برای کاربران مهمان
+Route::middleware('guest')->group(function () {
+    // مسیرهای auth با پیشوند
+    Route::prefix('auth')->group(function () {
+        Route::post('/identify', [IdentifierController::class, 'identify'])->name('auth.identify');
+        Route::get('/verify', [VerificationController::class, 'showVerificationForm'])->name('auth.verify-form');
+        Route::post('/resend-code', [VerificationController::class, 'resendVerificationCode'])->name('auth.resend-code');
+        Route::post('/verify-code', [VerificationController::class, 'verifyCode'])->name('auth.verify-code');
+        Route::post('/login-password', [LoginController::class, 'loginWithPassword'])->name('auth.login-password');
+        Route::post('/send-verification-code', [VerificationController::class, 'sendVerificationCode'])->name('auth.send-verification-code');
+    });
 });
 
-// مسیر مستقیم برای account-info (جدید - برای رفع مشکل 404)
-Route::get('/profile/account-info', [AccountInfoController::class, 'index'])
-    ->middleware(['auth'])
-    ->name('profile.direct-account-info');
+// مسیر خروج - فقط برای کاربران احراز هویت شده
+Route::post('/logout', [LoginController::class, 'logout'])
+    ->name('logout')
+    ->middleware('auth');
 
 // مسیر نمایش پروفایل عمومی کاربر با نام کاربری - قابل دسترسی برای همه
-Route::get('/profile/{username}', [ProfileController::class, 'showPublicProfile'])->name('public.profile');
+Route::get('/profile/{username}', [ProfileController::class, 'showPublicProfile'])
+    ->name('public.profile');
 
-// Logout route (accessible only to authenticated users)
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware(['web', 'auth']);
-
-// Dashboard routes (accessible only to authenticated users)
-Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function () {
+// مسیرهای داشبورد - فقط برای کاربران احراز هویت شده
+Route::middleware('auth')->prefix('profile')->name('profile.')->group(function () {
     // صفحه اصلی داشبورد
     Route::get('/', [ProfileController::class, 'index'])->name('index');
 
@@ -47,7 +50,7 @@ Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function
     // علاقه‌مندی‌ها
     Route::get('/favorites', [ProfileController::class, 'favorites'])->name('favorites');
 
-    // اطلاعات حساب کاربری - استفاده از کنترلر جدید AccountInfoController
+    // اطلاعات حساب کاربری
     Route::get('/account-info', [AccountInfoController::class, 'index'])->name('account-info');
     Route::post('/account-info', [AccountInfoController::class, 'update'])->name('update-account-info');
 
@@ -66,13 +69,13 @@ Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function
     Route::post('/logout', [ProfileController::class, 'logout'])->name('logout');
 });
 
-// General routes (accessible to everyone)
+// مسیرهای عمومی - قابل دسترسی برای همه
 
-// Home page
+// صفحه اصلی
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// Static pages (Terms, Privacy, etc.) - Grouped for clarity
-Route::prefix('pages')->group(function () { // Added a prefix for better organization
+// صفحات استاتیک (شرایط، حریم خصوصی و غیره)
+Route::prefix('pages')->group(function () {
     Route::get('/terms', function () {
         return view('pages.terms');
     })->name('terms');
@@ -130,7 +133,7 @@ Route::prefix('pages')->group(function () { // Added a prefix for better organiz
     })->name('contact');
 });
 
-// Search route
+// مسیر جستجو
 Route::get('/search', function () {
     return 'نتایج جستجو: ' . request('q');
 })->name('search');

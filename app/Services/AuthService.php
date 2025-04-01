@@ -286,4 +286,114 @@ class AuthService
             ];
         }
     }
+
+    /**
+     * پردازش درخواست کد تأیید
+     *
+     * @param string $identifier
+     * @param string $identifierType
+     * @param int $codeLength
+     * @param int $expiryMinutes
+     * @param int $cooldownSeconds
+     * @param int $maxDailyCodes
+     * @param bool $saveInSession آیا اطلاعات در نشست ذخیره شود
+     * @param array|null $sessionData اطلاعات اضافی برای ذخیره در نشست
+     * @param string $sessionKey کلید ذخیره در نشست
+     * @return array
+     */
+    public function processVerificationRequest(
+        string $identifier,
+        string $identifierType,
+        int $codeLength = 6,
+        int $expiryMinutes = 5,
+        int $cooldownSeconds = 60,
+        int $maxDailyCodes = 10,
+        bool $saveInSession = false,
+        ?array $sessionData = null,
+        string $sessionKey = 'verification_data'
+    ): array {
+        // بررسی محدودیت روزانه
+        $dailyCount = VerificationCode::where('identifier', $identifier)
+            ->where('type', $identifierType)
+            ->whereDate('created_at', today())
+            ->count();
+
+        if ($dailyCount >= $maxDailyCodes) {
+            return [
+                'success' => false,
+                'message' => "شما به حداکثر تعداد مجاز ارسال کد در روز رسیده‌اید. لطفاً فردا دوباره تلاش کنید.",
+                'daily_limit_reached' => true,
+                'wait_seconds' => 24 * 60 * 60,
+                'status' => 429
+            ];
+        }
+
+        // بررسی محدودیت زمانی
+        $canSend = VerificationCode::canSendNew($identifier, $identifierType, $cooldownSeconds);
+
+        if ($canSend !== true) {
+            $waitSeconds = is_array($canSend) && isset($canSend['remaining_seconds']) ?
+                $canSend['remaining_seconds'] :
+                (is_numeric($canSend) ? $canSend : $cooldownSeconds);
+
+            $message = is_array($canSend) && isset($canSend['message']) ?
+                $canSend['message'] :
+                "به دلیل محدودیت ارسال، لطفاً {$waitSeconds} ثانیه دیگر مجدداً تلاش کنید.";
+
+            return [
+                'success' => false,
+                'message' => $message,
+                'wait_seconds' => $waitSeconds,
+                'status' => 429
+            ];
+        }
+
+        // ارسال کد تأیید
+        try {
+            DB::beginTransaction();
+
+            $verificationCode = VerificationCode::generateFor(
+                $identifier,
+                $identifierType,
+                $codeLength,
+                $expiryMinutes
+            );
+
+            $sendResult = VerificationCode::sendCode($identifier, $identifierType, $verificationCode->code);
+
+            // اگر نیاز به ذخیره در نشست باشد
+            if ($saveInSession && $sessionData) {
+                session()->put($sessionKey, encrypt($sessionData));
+            }
+
+            DB::commit();
+
+            if (!$sendResult) {
+                throw new \Exception('خطا در ارسال کد تأیید');
+            }
+
+            $showCodeInDev = app()->environment('local', 'development') && config('app.show_verification_codes', true);
+
+            return [
+                'success' => true,
+                'message' => $identifierType === 'email'
+                    ? 'کد تأیید به ایمیل شما ارسال شد.'
+                    : 'کد تأیید به شماره موبایل شما ارسال شد.',
+                'expires_at' => $verificationCode->expires_at->timestamp * 1000,
+                'code_expiry_minutes' => $expiryMinutes,
+                'dev_code' => $showCodeInDev ? $verificationCode->code : null,
+                'verification_code' => $verificationCode,
+                'status' => 200
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("خطا در ارسال کد تأیید: " . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'خطا در ارسال کد تأیید. لطفاً دوباره تلاش کنید.',
+                'status' => 500
+            ];
+        }
+    }
 }
