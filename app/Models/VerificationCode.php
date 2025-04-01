@@ -8,10 +8,11 @@ use Illuminate\Support\Facades\Log;
 use App\Contracts\SmsServiceInterface;
 use Illuminate\Support\Facades\Mail;
 use Exception;
+use App\Traits\AuthUtils;
 
 class VerificationCode extends Model
 {
-    use HasFactory;
+    use HasFactory, AuthUtils;
 
     /**
      * ویژگی‌هایی که اجازه تخصیص جمعی دارند
@@ -452,33 +453,5 @@ class VerificationCode extends Model
             ]);
             return false;
         }
-    }
-
-    /**
-     * مخفی کردن اطلاعات حساس برای لاگ کردن
-     */
-    private static function maskSensitiveData(string $data): string
-    {
-        if (empty($data)) {
-            return '';
-        }
-
-        if (preg_match('/^\d+$/', $data)) {
-            $length = strlen($data);
-            if ($length <= 4) {
-                return $data;
-            }
-            return substr($data, 0, 4) . str_repeat('*', min($length - 7, 5)) . substr($data, -3);
-        }
-
-        if (strpos($data, '@') !== false) {
-            list($username, $domain) = explode('@', $data);
-            $usernameLength = strlen($username);
-            $maskedUsername = substr($username, 0, min(3, $usernameLength)) .
-                str_repeat('*', max(1, $usernameLength - 3));
-            return $maskedUsername . '@' . $domain;
-        }
-
-        return substr($data, 0, 3) . '***' . substr($data, -3);
     }
 }
