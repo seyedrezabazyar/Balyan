@@ -31,10 +31,6 @@ Route::post('/logout', [LoginController::class, 'logout'])
     ->name('logout')
     ->middleware('auth');
 
-// مسیر نمایش پروفایل عمومی کاربر با نام کاربری - قابل دسترسی برای همه
-Route::get('/profile/{username}', [ProfileController::class, 'showPublicProfile'])
-    ->name('public.profile');
-
 // مسیرهای داشبورد - فقط برای کاربران احراز هویت شده
 Route::middleware('auth')->prefix('profile')->name('profile.')->group(function () {
     // صفحه اصلی داشبورد
@@ -50,7 +46,7 @@ Route::middleware('auth')->prefix('profile')->name('profile.')->group(function (
     // علاقه‌مندی‌ها
     Route::get('/favorites', [ProfileController::class, 'favorites'])->name('favorites');
 
-    // اطلاعات حساب کاربری
+    // اطلاعات حساب کاربری - اصلاح شده
     Route::get('/account-info', [AccountInfoController::class, 'index'])->name('account-info');
     Route::post('/account-info', [AccountInfoController::class, 'update'])->name('update-account-info');
 
@@ -73,6 +69,11 @@ Route::middleware('auth')->prefix('profile')->name('profile.')->group(function (
 
 // صفحه اصلی
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// مسیر نمایش پروفایل عمومی کاربر با نام کاربری - قابل دسترسی برای همه
+// این مسیر باید بعد از تمام مسیرهای دیگر با پیشوند profile/ قرار گیرد
+Route::get('/profile/{username}', [ProfileController::class, 'showPublicProfile'])
+    ->name('public.profile');
 
 // صفحات استاتیک (شرایط، حریم خصوصی و غیره)
 Route::prefix('pages')->group(function () {

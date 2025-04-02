@@ -73,7 +73,7 @@ trait AuthUtils
      * @param string $data داده حساس
      * @return string داده مخفی شده
      */
-    public function maskSensitiveData(string $data): string
+    public static function maskSensitiveData(string $data): string
     {
         if (empty($data)) {
             return '';
