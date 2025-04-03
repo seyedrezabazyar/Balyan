@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'پروفایل کاربری - کتابخانه دیجیتال بالیان')
+@section('title', 'پروفایل کاربری - کتابخانه دیجیتال بلیان')
 
 @section('content')
     <div class="profile-container">
@@ -54,6 +54,49 @@
                                     <a href="{{ route('profile.account-info') }}" class="btn btn-warning btn-sm mt-2">
                                         <i class="fas fa-user-edit me-1"></i> تکمیل پروفایل
                                     </a>
+                                </div>
+                                <button type="button" class="alert-close-btn" onclick="this.parentElement.style.display='none';">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <!-- اعلان تایید ایمیل/شماره تلفن - فقط اگر کاربر ایمیل یا شماره تلفن تایید نشده داشته باشد -->
+            @if(Auth::user()->email && !Auth::user()->hasVerifiedEmail() || Auth::user()->phone && !Auth::user()->hasVerifiedPhone())
+                <div class="profile-alert mb-4">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="profile-alert-box alert-verify">
+                                <div class="alert-icon">
+                                    <i class="fas fa-envelope-open-text"></i>
+                                </div>
+                                <div class="alert-content">
+                                    <h5>تایید اطلاعات تماس</h5>
+                                    <p>
+                                        @if(Auth::user()->email && !Auth::user()->hasVerifiedEmail() && Auth::user()->phone && !Auth::user()->hasVerifiedPhone())
+                                            برای استفاده از تمامی امکانات سامانه و دریافت کد تخفیف 20%، لطفاً ایمیل و شماره موبایل خود را تایید کنید.
+                                        @elseif(Auth::user()->email && !Auth::user()->hasVerifiedEmail())
+                                            برای استفاده از تمامی امکانات سامانه و دریافت کد تخفیف 20%، لطفاً ایمیل خود را تایید کنید.
+                                        @else
+                                            برای استفاده از تمامی امکانات سامانه و دریافت کد تخفیف 20%، لطفاً شماره موبایل خود را تایید کنید.
+                                        @endif
+                                    </p>
+                                    <div class="mt-2">
+                                        @if(Auth::user()->email && !Auth::user()->hasVerifiedEmail())
+                                            <button class="btn btn-primary btn-sm request-verification" data-type="email" data-identifier="{{ Auth::user()->email }}">
+                                                <i class="fas fa-envelope me-1"></i> تایید ایمیل
+                                            </button>
+                                        @endif
+
+                                        @if(Auth::user()->phone && !Auth::user()->hasVerifiedPhone())
+                                            <button class="btn btn-primary btn-sm request-verification ms-2" data-type="phone" data-identifier="{{ Auth::user()->phone }}">
+                                                <i class="fas fa-mobile-alt me-1"></i> تایید شماره موبایل
+                                            </button>
+                                        @endif
+                                    </div>
                                 </div>
                                 <button type="button" class="alert-close-btn" onclick="this.parentElement.style.display='none';">
                                     <i class="fas fa-times"></i>
@@ -384,6 +427,61 @@
                     </div>
                 </div>
             </div>
+
+            <!-- مودال تایید کد -->
+            <div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="verificationModalLabel">تایید هویت</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="بستن"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="text-center mb-4">
+                                <div class="verification-icon mb-3">
+                                    <i class="fas fa-mobile-alt"></i>
+                                </div>
+                                <h5 class="verification-title">کد تایید ارسال شده را وارد کنید</h5>
+                                <p class="verification-subtitle" id="verificationIdentifier"></p>
+                            </div>
+
+                            <div class="verification-code-container mb-4">
+                                <div class="verification-code-inputs">
+                                    <input type="text" class="form-control code-input" maxlength="1" data-index="1" autocomplete="off">
+                                    <input type="text" class="form-control code-input" maxlength="1" data-index="2" autocomplete="off">
+                                    <input type="text" class="form-control code-input" maxlength="1" data-index="3" autocomplete="off">
+                                    <input type="text" class="form-control code-input" maxlength="1" data-index="4" autocomplete="off">
+                                    <input type="text" class="form-control code-input" maxlength="1" data-index="5" autocomplete="off">
+                                    <input type="text" class="form-control code-input" maxlength="1" data-index="6" autocomplete="off">
+                                </div>
+                                <div class="verification-code-timer mt-3 text-center">
+                                    <span id="countdown-timer">در حال بارگذاری...</span>
+                                </div>
+                            </div>
+
+                            <div id="verification-message" class="alert d-none"></div>
+
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+                                <div>
+                                    <button type="button" class="btn btn-link btn-resend-code me-2" id="resendCodeBtn" disabled>
+                                        <i class="fas fa-redo-alt me-1"></i> ارسال مجدد کد
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="verifyCodeBtn">
+                                        <i class="fas fa-check me-1"></i> تایید
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تگ مخفی برای ذخیره اطلاعات تایید -->
+            <input type="hidden" id="verification_identifier_type">
+            <input type="hidden" id="verification_identifier">
+            <input type="hidden" id="verification_code">
+            <input type="hidden" id="verification_expires_at">
         </div>
     </div>
 @endsection
@@ -427,6 +525,444 @@
                 tooltip.className = 'badge-tooltip';
                 tooltip.textContent = title;
                 badge.appendChild(tooltip);
+            });
+
+            // ---- کد جدید برای تایید ایمیل و شماره تلفن ----
+
+            // عناصر مودال
+            const verificationModal = document.getElementById('verificationModal');
+            if (!verificationModal) return; // اگر مودال وجود ندارد از اینجا خارج شو
+
+            const bsVerificationModal = new bootstrap.Modal(verificationModal);
+            const modalTitle = document.getElementById('verificationModalLabel');
+            const verificationIdentifierElement = document.getElementById('verificationIdentifier');
+            const codeInputs = document.querySelectorAll('.code-input');
+            const countdownTimer = document.getElementById('countdown-timer');
+            const verificationMessage = document.getElementById('verification-message');
+            const verifyButton = document.getElementById('verifyCodeBtn');
+            const resendButton = document.getElementById('resendCodeBtn');
+
+            // فیلدهای مخفی
+            const verificationIdentifierTypeField = document.getElementById('verification_identifier_type');
+            const verificationIdentifierField = document.getElementById('verification_identifier');
+            const verificationCodeField = document.getElementById('verification_code');
+            const verificationExpiresAtField = document.getElementById('verification_expires_at');
+
+            // دکمه‌های درخواست تایید
+            const requestButtons = document.querySelectorAll('.request-verification');
+
+            // تایمر مربوط به کد تایید
+            let countdownInterval = null;
+
+            // تبدیل اعداد فارسی/عربی به انگلیسی
+            function convertPersianToEnglish(str) {
+                if (!str) return str;
+                const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+                const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+                const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+                let result = str.toString();
+
+                for (let i = 0; i < 10; i++) {
+                    const persianRegex = new RegExp(persianNumbers[i], 'g');
+                    const arabicRegex = new RegExp(arabicNumbers[i], 'g');
+                    result = result.replace(persianRegex, englishNumbers[i])
+                        .replace(arabicRegex, englishNumbers[i]);
+                }
+
+                return result;
+            }
+
+            // به‌روزرسانی کد تایید در فیلد مخفی
+            function updateVerificationCode() {
+                let code = '';
+                codeInputs.forEach(input => {
+                    code += input.value;
+                });
+
+                if (verificationCodeField) {
+                    verificationCodeField.value = code;
+                }
+            }
+
+            // شروع تایمر شمارش معکوس
+            function startCountdown(expiresAt) {
+                clearInterval(countdownInterval);
+
+                countdownInterval = setInterval(() => {
+                    const now = new Date().getTime();
+                    const timeLeft = expiresAt - now;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        countdownTimer.textContent = 'کد تایید منقضی شده است';
+                        countdownTimer.classList.add('text-danger');
+                        resendButton.disabled = false;
+                        return;
+                    }
+
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                    countdownTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} مانده تا انقضای کد`;
+                    countdownTimer.classList.remove('text-danger');
+                }, 1000);
+            }
+
+            // نمایش پیام در مودال
+            function showMessage(message, type = 'danger') {
+                verificationMessage.textContent = message;
+                verificationMessage.className = `alert alert-${type}`;
+                verificationMessage.classList.remove('d-none');
+
+                setTimeout(() => {
+                    verificationMessage.classList.add('d-none');
+                }, 5000);
+            }
+
+            // درخواست کد تایید
+            function requestVerificationCode(type, identifier) {
+                // ذخیره اطلاعات در فیلدهای مخفی
+                verificationIdentifierTypeField.value = type;
+                verificationIdentifierField.value = identifier;
+
+                // تنظیم عنوان مودال
+                if (type === 'email') {
+                    modalTitle.textContent = 'تایید ایمیل';
+                    const verificationIcon = document.querySelector('.verification-icon i');
+                    if (verificationIcon) {
+                        verificationIcon.className = 'fas fa-envelope';
+                    }
+                } else {
+                    modalTitle.textContent = 'تایید شماره موبایل';
+                    const verificationIcon = document.querySelector('.verification-icon i');
+                    if (verificationIcon) {
+                        verificationIcon.className = 'fas fa-mobile-alt';
+                    }
+                }
+                verificationIdentifierElement.textContent = identifier;
+
+                // پاکسازی فیلدهای کد
+                codeInputs.forEach(input => {
+                    input.value = '';
+                });
+                updateVerificationCode();
+
+                // پاکسازی پیام‌های قبلی
+                verificationMessage.classList.add('d-none');
+
+                // غیرفعال کردن دکمه ارسال مجدد
+                resendButton.disabled = true;
+
+                // نمایش مودال
+                bsVerificationModal.show();
+
+                // اضافه کردن کلاس لودینگ به دکمه تایید
+                const sendButton = document.querySelector('.request-verification[data-type="' + type + '"]');
+                if (sendButton) {
+                    sendButton.classList.add('btn-loading');
+                    sendButton.disabled = true;
+                }
+
+                // ارسال درخواست به سرور
+                fetch('/auth/request-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        identifier_type: type,
+                        identifier: identifier
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        // حذف کلاس لودینگ
+                        if (sendButton) {
+                            sendButton.classList.remove('btn-loading');
+                            sendButton.disabled = false;
+                        }
+
+                        if (data.success) {
+                            // ذخیره زمان انقضا
+                            verificationExpiresAtField.value = data.expires_at;
+
+                            // شروع تایمر
+                            startCountdown(data.expires_at);
+
+                            // نمایش پیام موفقیت
+                            showMessage(data.message, 'success');
+
+                            // فعال کردن دکمه ارسال مجدد پس از مدتی
+                            setTimeout(() => {
+                                resendButton.disabled = false;
+                            }, 60000); // 60 ثانیه
+
+                            // تمرکز روی اولین فیلد کد
+                            codeInputs[0].focus();
+                        } else {
+                            // نمایش پیام خطا
+                            showMessage(data.message || 'خطا در ارسال کد تایید', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+
+                        // حذف کلاس لودینگ
+                        if (sendButton) {
+                            sendButton.classList.remove('btn-loading');
+                            sendButton.disabled = false;
+                        }
+
+                        showMessage('خطا در برقراری ارتباط با سرور', 'danger');
+                    });
+            }
+
+            // تایید کد
+            function verifyCode() {
+                const code = verificationCodeField.value;
+                const type = verificationIdentifierTypeField.value;
+                const identifier = verificationIdentifierField.value;
+
+                if (code.length !== 6) {
+                    showMessage('لطفاً کد 6 رقمی را کامل وارد کنید', 'warning');
+                    return;
+                }
+
+                // اضافه کردن کلاس لودینگ به دکمه تایید
+                verifyButton.classList.add('btn-loading');
+                verifyButton.disabled = true;
+
+                // ارسال درخواست به سرور
+                fetch('/auth/verify-new-identifier', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        verification_code: code
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        // حذف کلاس لودینگ
+                        verifyButton.classList.remove('btn-loading');
+                        verifyButton.disabled = false;
+
+                        if (data.success) {
+                            // نمایش پیام موفقیت
+                            showMessage(data.message, 'success');
+
+                            // بستن مودال پس از مدتی
+                            setTimeout(() => {
+                                bsVerificationModal.hide();
+
+                                // بارگذاری مجدد صفحه
+                                if (data.redirect) {
+                                    window.location.href = data.redirect;
+                                } else {
+                                    window.location.reload();
+                                }
+                            }, 2000);
+                        } else {
+                            // نمایش پیام خطا
+                            showMessage(data.message || 'کد تایید نامعتبر است', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+
+                        // حذف کلاس لودینگ
+                        verifyButton.classList.remove('btn-loading');
+                        verifyButton.disabled = false;
+
+                        showMessage('خطا در برقراری ارتباط با سرور', 'danger');
+                    });
+            }
+
+            // ارسال مجدد کد
+            function resendVerificationCode() {
+                const type = verificationIdentifierTypeField.value;
+                const identifier = verificationIdentifierField.value;
+
+                // غیرفعال کردن دکمه
+                resendButton.disabled = true;
+                resendButton.classList.add('btn-loading');
+
+                // ارسال درخواست به سرور
+                fetch('/auth/request-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        identifier_type: type,
+                        identifier: identifier
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        // حذف کلاس لودینگ
+                        resendButton.classList.remove('btn-loading');
+
+                        if (data.success) {
+                            // ذخیره زمان انقضا
+                            verificationExpiresAtField.value = data.expires_at;
+
+                            // شروع تایمر
+                            startCountdown(data.expires_at);
+
+                            // نمایش پیام موفقیت
+                            showMessage(data.message, 'success');
+
+                            // فعال کردن دکمه ارسال مجدد پس از مدتی
+                            setTimeout(() => {
+                                resendButton.disabled = false;
+                            }, 60000); // 60 ثانیه
+
+                            // پاکسازی فیلدهای کد
+                            codeInputs.forEach(input => {
+                                input.value = '';
+                            });
+                            updateVerificationCode();
+
+                            // تمرکز روی اولین فیلد کد
+                            codeInputs[0].focus();
+                        } else {
+                            // نمایش پیام خطا
+                            showMessage(data.message || 'خطا در ارسال مجدد کد تایید', 'danger');
+
+                            // فعال کردن دکمه ارسال مجدد
+                            resendButton.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+
+                        // حذف کلاس لودینگ
+                        resendButton.classList.remove('btn-loading');
+
+                        showMessage('خطا در برقراری ارتباط با سرور', 'danger');
+
+                        // فعال کردن دکمه ارسال مجدد
+                        resendButton.disabled = false;
+                    });
+            }
+
+            // رویدادها برای فیلدهای کد تایید
+            if (codeInputs.length > 0) {
+                codeInputs.forEach((input, index) => {
+                    // انتخاب متن هنگام کلیک
+                    input.addEventListener('click', function() {
+                        this.select();
+                    });
+
+                    // پردازش ورودی
+                    input.addEventListener('input', function(e) {
+                        let value = convertPersianToEnglish(this.value);
+
+                        if (value !== this.value) {
+                            this.value = value;
+                        }
+
+                        if (!/^\d*$/.test(value)) {
+                            this.value = '';
+                            return;
+                        }
+
+                        if (value.length === 1 && index < codeInputs.length - 1) {
+                            codeInputs[index + 1].focus();
+                            codeInputs[index + 1].select();
+                        }
+
+                        updateVerificationCode();
+
+                        // اگر تمام فیلدها پر شدند، بررسی خودکار کد
+                        let allFilled = true;
+                        codeInputs.forEach(inp => {
+                            if (!inp.value) allFilled = false;
+                        });
+
+                        if (allFilled) {
+                            // کمی تاخیر برای اطمینان از به‌روزرسانی کد
+                            setTimeout(() => {
+                                verifyCode();
+                            }, 300);
+                        }
+                    });
+
+                    // کلیدهای جهت‌دار و Backspace
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'ArrowRight' && index > 0) {
+                            codeInputs[index - 1].focus();
+                            codeInputs[index - 1].select();
+                        } else if (e.key === 'ArrowLeft' && index < codeInputs.length - 1) {
+                            codeInputs[index + 1].focus();
+                            codeInputs[index + 1].select();
+                        } else if (e.key === 'Backspace' && !this.value.length && index > 0) {
+                            codeInputs[index - 1].focus();
+                            codeInputs[index - 1].select();
+                        }
+                    });
+
+                    // پیست کردن کد
+                    input.addEventListener('paste', function(e) {
+                        e.preventDefault();
+
+                        let pasteData = e.clipboardData.getData('text');
+                        pasteData = convertPersianToEnglish(pasteData);
+                        pasteData = pasteData.replace(/\D/g, '');
+
+                        for (let i = 0; i < Math.min(pasteData.length, codeInputs.length); i++) {
+                            codeInputs[i].value = pasteData[i];
+                        }
+
+                        const nextIndex = Math.min(index + pasteData.length, codeInputs.length - 1);
+                        codeInputs[nextIndex].focus();
+
+                        updateVerificationCode();
+
+                        // اگر تعداد ارقام پیست شده کافی بود، بررسی خودکار کد
+                        if (pasteData.length >= 6) {
+                            setTimeout(() => {
+                                verifyCode();
+                            }, 300);
+                        }
+                    });
+                });
+            }
+
+            // رویداد دکمه‌های درخواست تایید
+            if (requestButtons) {
+                requestButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const type = this.getAttribute('data-type');
+                        const identifier = this.getAttribute('data-identifier');
+                        requestVerificationCode(type, identifier);
+                    });
+                });
+            }
+
+            // رویداد دکمه تایید کد
+            if (verifyButton) {
+                verifyButton.addEventListener('click', verifyCode);
+            }
+
+            // رویداد دکمه ارسال مجدد
+            if (resendButton) {
+                resendButton.addEventListener('click', resendVerificationCode);
+            }
+
+            // بستن مودال به صورت دستی
+            verificationModal.addEventListener('hidden.bs.modal', function () {
+                // پاکسازی اینتروال تایمر
+                clearInterval(countdownInterval);
             });
         });
     </script>
@@ -1026,7 +1562,137 @@
             color: #333;
         }
 
-        /* ریسپانسیو */
+        /* استایل برای باکس اعلان تایید */
+        .alert-verify {
+            background-color: #e8f4fd;
+            border-color: #b8daff;
+        }
+
+        .alert-verify .alert-icon {
+            background-color: #4270e4;
+        }
+
+        .alert-verify .alert-content h5 {
+            color: #004085;
+        }
+
+        .alert-verify .alert-content p {
+            color: #004085;
+        }
+
+        .alert-verify .alert-close-btn {
+            color: #004085;
+        }
+
+        /* استایل‌های مودال تایید */
+        .verification-icon {
+            width: 70px;
+            height: 70px;
+            background-color: #4270e4;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            margin: 0 auto;
+        }
+
+        .verification-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 15px;
+            color: #2c3e50;
+        }
+
+        .verification-subtitle {
+            color: #6c757d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        /* استایل‌های فیلدهای کد تایید */
+        .verification-code-container {
+            margin-top: 20px;
+        }
+
+        .verification-code-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            direction: ltr;
+        }
+
+        .verification-code-inputs .code-input {
+            width: 45px;
+            height: 55px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            color: #2c3e50;
+        }
+
+        .verification-code-inputs .code-input:focus {
+            border-color: #4270e4;
+            box-shadow: 0 0 0 0.25rem rgba(66, 112, 228, 0.25);
+        }
+
+        .verification-code-timer {
+            color: #6c757d;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+
+        .verification-code-timer.text-danger {
+            color: #dc3545 !important;
+        }
+
+        /* استایل دکمه ارسال مجدد کد */
+        .btn-resend-code {
+            color: #4270e4;
+            font-size: 14px;
+            padding: 0;
+        }
+
+        .btn-resend-code:hover {
+            color: #3560d0;
+            text-decoration: underline;
+        }
+
+        .btn-resend-code:disabled {
+            color: #adb5bd;
+            text-decoration: none;
+            cursor: not-allowed;
+        }
+
+        /* انیمیشن لودینگ برای دکمه‌ها */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .btn-loading:after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: calc(50% - 8px);
+            left: calc(50% - 8px);
+            border-radius: 50%;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            animation: btn-spinner 0.6s linear infinite;
+        }
+
+        @keyframes btn-spinner {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* پاسخگویی برای صفحات موبایل */
         @media (max-width: 991.98px) {
             .achievements-grid {
                 grid-template-columns: 1fr;
@@ -1040,6 +1706,12 @@
         @media (max-width: 576px) {
             .profile-container {
                 padding-top: 15px;
+            }
+
+            .verification-code-inputs .code-input {
+                width: 40px;
+                height: 50px;
+                font-size: 18px;
             }
         }
     </style>
