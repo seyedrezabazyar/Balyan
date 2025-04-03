@@ -314,6 +314,10 @@ class VerificationController extends Controller
      */
     public function requestVerification(Request $request)
     {
+        Log::info('درخواست تایید دریافت شد', [
+            'data' => $request->all()
+        ]);
+
         $validator = Validator::make($request->all(), [
             'identifier_type' => 'required|in:email,phone',
             'identifier' => 'required|string',
@@ -329,8 +333,8 @@ class VerificationController extends Controller
         $identifierType = $request->input('identifier_type');
         $identifier = $request->input('identifier');
 
+        // بررسی تکراری نبودن ایمیل/تلفن برای کاربران دیگر
         $existingUser = User::where($identifierType, $identifier)->first();
-
         if ($existingUser && $existingUser->id !== auth()->id()) {
             return response()->json([
                 'success' => false,
@@ -338,6 +342,19 @@ class VerificationController extends Controller
                     ? 'این ایمیل قبلاً توسط کاربر دیگری ثبت شده است.'
                     : 'این شماره تلفن قبلاً توسط کاربر دیگری ثبت شده است.'
             ], 400);
+        }
+
+        // بررسی محدودیت ارسال کد
+        $canSend = VerificationCode::canSendNew($identifier, $identifierType, self::RESEND_COOLDOWN_SECONDS);
+        if ($canSend !== true) {
+            $message = is_numeric($canSend)
+                ? "برای ارسال مجدد کد باید {$canSend} ثانیه صبر کنید."
+                : "محدودیت ارسال کد وجود دارد. لطفاً بعداً دوباره تلاش کنید.";
+
+            return response()->json([
+                'success' => false,
+                'message' => $message
+            ], 429);
         }
 
         // اطلاعاتی که می‌خواهیم در نشست ذخیره کنیم
@@ -350,24 +367,70 @@ class VerificationController extends Controller
             'created_at' => now(),
         ];
 
-        // استفاده از سرویس برای پردازش درخواست کد تأیید
-        $result = $this->authService->processVerificationRequest(
-            $identifier,
-            $identifierType,
-            self::VERIFICATION_CODE_LENGTH,
-            self::VERIFICATION_CODE_EXPIRY_MINUTES,
-            self::RESEND_COOLDOWN_SECONDS,
-            self::MAX_DAILY_CODES_PER_IDENTIFIER,
-            true,
-            $sessionData,
-            'verification_data'
-        );
+        // ایجاد کد تایید جدید
+        DB::beginTransaction();
+        try {
+            // حذف کدهای قبلی
+            VerificationCode::where('identifier', $identifier)
+                ->where('type', $identifierType)
+                ->delete();
 
-        // حذف کلیدهایی که در پاسخ API نیازی به آنها نیست
-        return response()->json(
-            array_diff_key($result, ['status' => null, 'verification_code' => null]),
-            $result['status'] ?? 200
-        );
+            // ایجاد کد جدید
+            $code = '';
+            for ($i = 0; $i < self::VERIFICATION_CODE_LENGTH; $i++) {
+                $code .= rand(0, 9);
+            }
+
+            // ذخیره کد در دیتابیس
+            $verificationCode = new VerificationCode();
+            $verificationCode->identifier = $identifier;
+            $verificationCode->type = $identifierType;
+            $verificationCode->code = $code;
+            $verificationCode->expires_at = now()->addMinutes(self::VERIFICATION_CODE_EXPIRY_MINUTES);
+            $verificationCode->used = false;
+            $verificationCode->save();
+
+            // ذخیره اطلاعات در سشن
+            session()->put('verification_data', encrypt($sessionData));
+
+            // ارسال کد به کاربر
+            if ($identifierType === 'email') {
+                // ارسال ایمیل
+                // در محیط واقعی اینجا کد ارسال ایمیل قرار می‌گیرد
+                // Mail::to($identifier)->send(new VerificationCodeMail($code));
+
+                // در محیط توسعه، کد را لاگ می‌کنیم
+                Log::info("کد تایید $code به ایمیل $identifier ارسال شد (محیط توسعه)");
+            } else {
+                // ارسال پیامک
+                // در محیط واقعی اینجا کد ارسال پیامک قرار می‌گیرد
+                // SMSService::send($identifier, "کد تایید شما: $code");
+
+                // در محیط توسعه، کد را لاگ می‌کنیم
+                Log::info("کد تایید $code به شماره $identifier ارسال شد (محیط توسعه)");
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $identifierType === 'email'
+                    ? 'کد تایید به ایمیل شما ارسال شد.'
+                    : 'کد تایید به شماره موبایل شما ارسال شد.',
+                'expires_at' => $verificationCode->expires_at->timestamp * 1000
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("خطا در ارسال کد تایید: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در ارسال کد تایید. لطفاً دوباره تلاش کنید.'
+            ], 500);
+        }
     }
 
     /**
@@ -375,6 +438,10 @@ class VerificationController extends Controller
      */
     public function verifyNewIdentifier(Request $request)
     {
+        Log::info('درخواست تایید کد دریافت شد', [
+            'data' => $request->all()
+        ]);
+
         $validator = Validator::make($request->all(), [
             'verification_code' => 'required|digits:'.self::VERIFICATION_CODE_LENGTH,
         ], ValidationMessagesProvider::getAuthValidationMessages());
@@ -395,20 +462,26 @@ class VerificationController extends Controller
             }
 
             $sessionData = decrypt(session()->get('verification_data'));
-
             $identifier = $sessionData['auth_identifier'];
             $identifierType = $sessionData['auth_identifier_type'];
             $verificationCode = $request->input('verification_code');
 
-            $isValid = VerificationCode::validate($identifier, $verificationCode, $identifierType);
+            // بررسی کد تأیید در دیتابیس
+            $codeRecord = VerificationCode::where('identifier', $identifier)
+                ->where('type', $identifierType)
+                ->where('code', $verificationCode)
+                ->where('used', false)
+                ->where('expires_at', '>', now())
+                ->first();
 
-            if (!$isValid) {
+            if (!$codeRecord) {
                 return response()->json([
                     'success' => false,
                     'message' => 'کد تأیید وارد شده صحیح نیست یا منقضی شده است.'
                 ], 400);
             }
 
+            // به‌روزرسانی اطلاعات کاربر
             $user = auth()->user();
 
             if ($identifierType === 'email') {
@@ -420,6 +493,12 @@ class VerificationController extends Controller
             }
 
             $user->save();
+
+            // علامت‌گذاری کد به عنوان استفاده شده
+            $codeRecord->used = true;
+            $codeRecord->save();
+
+            // پاکسازی سشن
             session()->forget('verification_data');
 
             return response()->json([
@@ -430,7 +509,9 @@ class VerificationController extends Controller
                 'redirect' => route('profile.account-info')
             ]);
         } catch (\Exception $e) {
-            Log::error("خطا در تأیید شناسه جدید: " . $e->getMessage());
+            Log::error("خطا در تأیید شناسه جدید: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'success' => false,

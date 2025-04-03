@@ -20,14 +20,16 @@ Route::middleware('guest')->prefix('auth')->name('auth.')->group(function () {
     Route::post('/verify-code', [VerificationController::class, 'verifyCode'])->name('verify-code');
     Route::post('/login-password', [LoginController::class, 'loginWithPassword'])->name('login-password');
     Route::post('/send-verification-code', [VerificationController::class, 'sendVerificationCode'])->name('send-verification-code');
-
-    // مسیرهای جدید برای تایید اطلاعات تماس
-    Route::post('/request-verification', [VerificationController::class, 'requestVerification'])->name('request-verification');
-    Route::post('/verify-new-identifier', [VerificationController::class, 'verifyNewIdentifier'])->name('verify-new-identifier');
 });
 
 // مسیر خروج - فقط برای کاربران احراز هویت شده
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
+
+// مسیرهای مشترک تایید اطلاعات تماس (قابل دسترسی برای کاربران احراز هویت شده)
+Route::middleware('auth')->prefix('auth')->name('auth.')->group(function () {
+    Route::post('/request-verification', [VerificationController::class, 'requestVerification'])->name('request-verification');
+    Route::post('/verify-new-identifier', [VerificationController::class, 'verifyNewIdentifier'])->name('verify-new-identifier');
+});
 
 // مسیرهای داشبورد - فقط برای کاربران احراز هویت شده
 Route::middleware('auth')->prefix('profile')->name('profile.')->group(function () {
@@ -44,10 +46,6 @@ Route::middleware('auth')->prefix('profile')->name('profile.')->group(function (
     Route::get('/messages', [ProfileController::class, 'messages'])->name('messages');
     Route::get('/messages/{messageId}', [ProfileController::class, 'messageDetails'])->name('message-details');
     Route::post('/logout', [ProfileController::class, 'logout'])->name('logout');
-
-    // مسیرهای جدید برای تایید اطلاعات تماس
-    Route::post('/request-verification', [VerificationController::class, 'requestVerification'])->name('request-verification');
-    Route::post('/verify-new-identifier', [VerificationController::class, 'verifyNewIdentifier'])->name('verify-new-identifier');
 });
 
 // مسیرهای عمومی - قابل دسترسی برای همه

@@ -13,6 +13,8 @@
     <meta property="og:image" content="{{ asset('images/og-image.jpg') }}">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:type" content="website">
+    <!-- تگ CSRF توکن برای درخواست‌های ایجکس -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>@yield('title', 'کتابخانه دیجیتال بلیان')</title>
 
@@ -43,6 +45,29 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- اسکریپت‌های اصلی سایت -->
 <script src="{{ asset('js/script.js') }}"></script>
+<!-- تنظیم CSRF توکن برای درخواست‌های ایجکس -->
+<script>
+    // تنظیم CSRF توکن برای تمام درخواست‌های FETCH
+    document.addEventListener('DOMContentLoaded', function() {
+        // در صورتی که اسکریپتی از FETCH استفاده می‌کند، توکن CSRF را به صورت خودکار اضافه می‌کنیم
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            if(!options.headers) {
+                options.headers = {};
+            }
+
+            // اضافه کردن CSRF توکن برای درخواست‌های POST، PUT، DELETE و PATCH
+            if(['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method)) {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                if(csrfToken) {
+                    options.headers['X-CSRF-TOKEN'] = csrfToken.getAttribute('content');
+                }
+            }
+
+            return originalFetch(url, options);
+        };
+    });
+</script>
 @stack('scripts')
 </body>
 </html>
