@@ -41,7 +41,8 @@ return new class extends Migration
             $table->index('slug');
             $table->index('language_code');
             $table->index('access_level_id');
-            $table->index('author_text');
+            // حذف ایندکس author_text به دلیل طول زیاد
+            // $table->index('author_text');
             $table->index('year_numeric');
 
             // ارتباط با جدول زبان‌ها

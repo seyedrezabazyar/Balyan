@@ -49,7 +49,7 @@ return new class extends Migration
             $table->timestamps(); // ستون‌های created_at و updated_at
 
             // ایندکس‌ها برای بهبود عملکرد
-            $table->unique('md5');
+            // حذف خط $table->unique('md5'); چون بالاتر unique تعریف شده
             $table->index('language_code');
             $table->index('topic');
             $table->index('year_numeric');
