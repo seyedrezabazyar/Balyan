@@ -313,10 +313,16 @@ class AuthService
         string $sessionKey = 'verification_data'
     ): array {
         // بررسی محدودیت روزانه
-        $dailyCount = VerificationCode::where('identifier', $identifier)
-            ->where('type', $identifierType)
-            ->whereDate('created_at', today())
-            ->count();
+        $dailyQuery = VerificationCode::where('type', $identifierType)
+            ->whereDate('created_at', today());
+
+        if ($identifierType === 'email') {
+            $dailyQuery->where('email', $identifier);
+        } else {
+            $dailyQuery->where('phone', $identifier);
+        }
+
+        $dailyCount = $dailyQuery->count();
 
         if ($dailyCount >= $maxDailyCodes) {
             return [

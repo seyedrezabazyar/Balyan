@@ -61,18 +61,34 @@ class VerificationController extends Controller
         $hasPassword = $authData['has_password'];
         $sessionToken = $authData['session_token'];
 
-        $verificationCode = VerificationCode::where('identifier', $identifier)
-            ->where('type', $identifierType)
-            ->where('used', false)
+        // بررسی وجود کد تأیید معتبر
+        $query = VerificationCode::where('type', $identifierType)
+            ->where('is_used', false)
             ->where('expires_at', '>', now())
-            ->orderBy('created_at', 'desc')
-            ->first();
+            ->orderBy('created_at', 'desc');
 
-        $codeExpired = VerificationCode::where('identifier', $identifier)
-            ->where('type', $identifierType)
-            ->where('used', false)
-            ->where('expires_at', '<=', now())
-            ->exists();
+        // تنظیم فیلتر بر اساس نوع شناسه
+        if ($identifierType === 'email') {
+            $query->where('email', $identifier);
+        } else {
+            $query->where('phone', $identifier);
+        }
+
+        $verificationCode = $query->first();
+
+        // بررسی وجود کد منقضی شده
+        $expiredQuery = VerificationCode::where('type', $identifierType)
+            ->where('is_used', false)
+            ->where('expires_at', '<=', now());
+
+        // تنظیم فیلتر بر اساس نوع شناسه
+        if ($identifierType === 'email') {
+            $expiredQuery->where('email', $identifier);
+        } else {
+            $expiredQuery->where('phone', $identifier);
+        }
+
+        $codeExpired = $expiredQuery->exists();
 
         $comingFromIdentify = $request->session()->pull('coming_from_identify', false);
 
@@ -163,7 +179,7 @@ class VerificationController extends Controller
             'waitTime' => $verificationCode ? null : VerificationCode::canSendNew($identifier, $identifierType, self::RESEND_COOLDOWN_SECONDS),
             'session_token' => $sessionToken,
             'code_expiry_minutes' => self::VERIFICATION_CODE_EXPIRY_MINUTES,
-            'dev_code' => (app()->environment('local', 'development') && self::DEV_MODE_SHOW_CODES) ? $verificationCode->code ?? null : null
+            'dev_code' => (app()->environment('local', 'development') && self::DEV_MODE_SHOW_CODES) ? ($verificationCode->code ?? null) : null
         ]);
     }
 
@@ -211,9 +227,6 @@ class VerificationController extends Controller
         );
     }
 
-    /**
-     * بررسی و تأیید کد وارد شده
-     */
     /**
      * بررسی و تأیید کد وارد شده
      */

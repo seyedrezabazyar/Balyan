@@ -18,11 +18,13 @@ class VerificationCode extends Model
      * ویژگی‌هایی که اجازه تخصیص جمعی دارند
      */
     protected $fillable = [
-        'identifier',
-        'type',
+        'user_id',
+        'email',
+        'phone',
         'code',
+        'type',
         'expires_at',
-        'used',
+        'is_used',
         'attempts'
     ];
 
@@ -31,7 +33,7 @@ class VerificationCode extends Model
      */
     protected $casts = [
         'expires_at' => 'datetime',
-        'used' => 'boolean',
+        'is_used' => 'boolean',
         'attempts' => 'integer'
     ];
 
@@ -67,14 +69,23 @@ class VerificationCode extends Model
         $code = self::generateRandomCode($codeLength);
         $expiresAt = now()->addMinutes($expiresInMinutes);
 
-        $verificationCode = self::create([
-            'identifier' => $identifier,
-            'type' => $type,
+        // تنظیم داده‌ها برای ایجاد رکورد جدید
+        $data = [
             'code' => $code,
+            'type' => $type,
             'expires_at' => $expiresAt,
-            'used' => false,
+            'is_used' => false,
             'attempts' => 0
-        ]);
+        ];
+
+        // اضافه کردن ایمیل یا تلفن بر اساس نوع
+        if ($type === 'email') {
+            $data['email'] = $identifier;
+        } else {
+            $data['phone'] = $identifier;
+        }
+
+        $verificationCode = self::create($data);
 
         Log::info("کد تأیید ایجاد شد", [
             'identifier' => self::maskSensitiveData($identifier),
@@ -107,12 +118,19 @@ class VerificationCode extends Model
             }
         }
 
-        $verificationCode = self::where('identifier', $identifier)
-            ->where('type', $type)
+        // ساخت کوئری براساس نوع شناسه (ایمیل یا تلفن)
+        $query = self::where('type', $type)
             ->where('code', $code)
-            ->where('used', false)
-            ->where('expires_at', '>', now())
-            ->first();
+            ->where('is_used', false)
+            ->where('expires_at', '>', now());
+
+        if ($type === 'email') {
+            $query->where('email', $identifier);
+        } else {
+            $query->where('phone', $identifier);
+        }
+
+        $verificationCode = $query->first();
 
         if (!$verificationCode) {
             Log::info("تلاش با کد تأیید نامعتبر", [
@@ -121,11 +139,18 @@ class VerificationCode extends Model
                 'provided_code' => $code
             ]);
 
-            self::where('identifier', $identifier)
-                ->where('type', $type)
-                ->where('used', false)
-                ->where('expires_at', '>', now())
-                ->increment('attempts');
+            // افزایش تعداد تلاش‌های ناموفق
+            $attemptsQuery = self::where('type', $type)
+                ->where('is_used', false)
+                ->where('expires_at', '>', now());
+
+            if ($type === 'email') {
+                $attemptsQuery->where('email', $identifier);
+            } else {
+                $attemptsQuery->where('phone', $identifier);
+            }
+
+            $attemptsQuery->increment('attempts');
 
             return false;
         }
@@ -138,14 +163,14 @@ class VerificationCode extends Model
             ]);
 
             $verificationCode->update([
-                'used' => true
+                'is_used' => true
             ]);
 
             return false;
         }
 
         $verificationCode->update([
-            'used' => true
+            'is_used' => true
         ]);
 
         Log::info("کد تأیید با موفقیت اعتبارسنجی شد", [
@@ -180,10 +205,16 @@ class VerificationCode extends Model
                 }
             }
 
-            $lastCode = self::where('identifier', $originalIdentifier)
-                ->where('type', $type)
-                ->latest('created_at')
-                ->first();
+            // ساخت کوئری براساس نوع شناسه
+            $lastCodeQuery = self::where('type', $type);
+
+            if ($type === 'email') {
+                $lastCodeQuery->where('email', $originalIdentifier);
+            } else {
+                $lastCodeQuery->where('phone', $originalIdentifier);
+            }
+
+            $lastCode = $lastCodeQuery->latest('created_at')->first();
 
             if ($lastCode) {
                 $timeSinceLastCode = $lastCode->created_at->diffInSeconds(now());
@@ -203,10 +234,18 @@ class VerificationCode extends Model
             }
 
             $todayStart = now()->startOfDay();
-            $codesInToday = self::where('identifier', $originalIdentifier)
-                ->where('type', $type)
-                ->where('created_at', '>=', $todayStart)
-                ->count();
+
+            // ساخت کوئری براساس نوع شناسه برای محدودیت روزانه
+            $dailyQuery = self::where('type', $type)
+                ->where('created_at', '>=', $todayStart);
+
+            if ($type === 'email') {
+                $dailyQuery->where('email', $originalIdentifier);
+            } else {
+                $dailyQuery->where('phone', $originalIdentifier);
+            }
+
+            $codesInToday = $dailyQuery->count();
 
             if ($codesInToday >= $maxPerDay) {
                 $endOfDay = now()->endOfDay();
@@ -284,7 +323,7 @@ class VerificationCode extends Model
     public static function cleanup(int $olderThanDays = 30): int
     {
         $count = self::where(function ($query) {
-            $query->where('used', true)
+            $query->where('is_used', true)
                 ->orWhere('expires_at', '<', now());
         })
             ->where('created_at', '<', now()->subDays($olderThanDays))
@@ -327,23 +366,47 @@ class VerificationCode extends Model
                 return null;
             }
 
-            $query = self::where('type', $type)
-                ->where('identifier', 'not like', '%*%')
-                ->orderBy('created_at', 'desc');
+            // ساخت کوئری براساس نوع شناسه
+            $query = self::where('type', $type);
+
+            // اضافه کردن شرط عدم وجود ستاره
+            if ($type === 'email') {
+                $query->where('email', 'not like', '%*%');
+            } else {
+                $query->where('phone', 'not like', '%*%');
+            }
+
+            $query->orderBy('created_at', 'desc');
 
             foreach ($parts as $index => $part) {
                 if (empty($part)) continue;
 
-                if ($index === 0) {
-                    $query->where('identifier', 'like', $part . '%');
-                } elseif ($index === count($parts) - 1) {
-                    $query->where('identifier', 'like', '%' . $part);
+                if ($type === 'email') {
+                    if ($index === 0) {
+                        $query->where('email', 'like', $part . '%');
+                    } elseif ($index === count($parts) - 1) {
+                        $query->where('email', 'like', '%' . $part);
+                    } else {
+                        $query->where('email', 'like', '%' . $part . '%');
+                    }
                 } else {
-                    $query->where('identifier', 'like', '%' . $part . '%');
+                    if ($index === 0) {
+                        $query->where('phone', 'like', $part . '%');
+                    } elseif ($index === count($parts) - 1) {
+                        $query->where('phone', 'like', '%' . $part);
+                    } else {
+                        $query->where('phone', 'like', '%' . $part . '%');
+                    }
                 }
             }
 
-            $originalIdentifier = $query->value('identifier');
+            // گرفتن مقدار شناسه (ایمیل یا تلفن)
+            $originalIdentifier = null;
+            if ($type === 'email') {
+                $originalIdentifier = $query->value('email');
+            } else {
+                $originalIdentifier = $query->value('phone');
+            }
 
             if ($originalIdentifier) {
                 return $originalIdentifier;
@@ -353,13 +416,30 @@ class VerificationCode extends Model
             $prefix = $parts[0] ?? '';
             $suffix = $parts[count($parts) - 1] ?? '';
 
-            return self::where('type', $type)
-                ->where('identifier', 'not like', '%*%')
-                ->where('identifier', 'like', $prefix . '%')
-                ->where('identifier', 'like', '%' . $suffix)
-                ->whereRaw('LENGTH(identifier) = ?', [$estimatedLength])
-                ->orderBy('created_at', 'desc')
-                ->value('identifier');
+            // ساخت کوئری دوم برای تخمین طول
+            $secondQuery = self::where('type', $type);
+
+            if ($type === 'email') {
+                $secondQuery->where('email', 'not like', '%*%')
+                    ->where('email', 'like', $prefix . '%')
+                    ->where('email', 'like', '%' . $suffix);
+
+                if ($estimatedLength > 0) {
+                    $secondQuery->whereRaw('LENGTH(email) = ?', [$estimatedLength]);
+                }
+
+                return $secondQuery->orderBy('created_at', 'desc')->value('email');
+            } else {
+                $secondQuery->where('phone', 'not like', '%*%')
+                    ->where('phone', 'like', $prefix . '%')
+                    ->where('phone', 'like', '%' . $suffix);
+
+                if ($estimatedLength > 0) {
+                    $secondQuery->whereRaw('LENGTH(phone) = ?', [$estimatedLength]);
+                }
+
+                return $secondQuery->orderBy('created_at', 'desc')->value('phone');
+            }
         } catch (\Exception $e) {
             Log::error('خطا در یافتن شناسه اصلی: ' . $e->getMessage(), [
                 'masked' => self::maskSensitiveData($maskedIdentifier),
